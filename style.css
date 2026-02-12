@@ -1,0 +1,322 @@
+/* ===== Reset e Base ===== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --azul-escuro: #0c1e3c;
+    --azul-medio: #1a3a6b;
+    --azul-claro: #2c5aa0;
+    --dourado: #c9a84c;
+    --dourado-claro: #e0c872;
+    --branco: #ffffff;
+    --cinza-bg: #f0f2f5;
+    --cinza-borda: #ccd1d9;
+    --cinza-texto: #4a4a4a;
+    --vermelho: #c0392b;
+    --verde: #27ae60;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--cinza-bg);
+    color: var(--cinza-texto);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== Header ===== */
+header {
+    background: linear-gradient(135deg, var(--azul-escuro) 0%, var(--azul-medio) 100%);
+    color: var(--branco);
+    padding: 1.5rem 1rem;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    border-bottom: 4px solid var(--dourado);
+}
+
+.header-content {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.logo {
+    width: 80px;
+    height: auto;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.header-text h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.header-text p {
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+.header-text .subtitle {
+    margin-top: 0.3rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--dourado-claro);
+}
+
+/* ===== Main ===== */
+main {
+    flex: 1;
+    max-width: 900px;
+    width: 100%;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* ===== Instruções ===== */
+.instructions {
+    background: var(--branco);
+    border-left: 4px solid var(--dourado);
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 0.95rem;
+}
+
+.required-mark {
+    color: var(--vermelho);
+    font-weight: bold;
+}
+
+/* ===== Formulário ===== */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+fieldset {
+    background: var(--branco);
+    border: 1px solid var(--cinza-borda);
+    border-radius: 6px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+legend {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--azul-escuro);
+    padding: 0 0.5rem;
+    border-bottom: 2px solid var(--dourado);
+    padding-bottom: 0.25rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-top: 1rem;
+    flex: 1;
+}
+
+.form-group:first-child {
+    margin-top: 0.75rem;
+}
+
+.form-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--azul-escuro);
+}
+
+.form-group input,
+.form-group select {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--cinza-borda);
+    border-radius: 4px;
+    font-size: 0.95rem;
+    color: var(--cinza-texto);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    background-color: var(--branco);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--azul-claro);
+    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.15);
+}
+
+.form-group input.invalid,
+.form-group select.invalid {
+    border-color: var(--vermelho);
+    box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.1);
+}
+
+.form-group .error-msg {
+    font-size: 0.8rem;
+    color: var(--vermelho);
+    min-height: 1.1rem;
+}
+
+/* ===== Linhas de campos lado a lado ===== */
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.form-row .form-group {
+    margin-top: 0;
+}
+
+.form-group-small {
+    flex: 0 0 140px;
+}
+
+.form-group-large {
+    flex: 2;
+}
+
+/* ===== Botões ===== */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    padding: 1rem 0;
+}
+
+#btn-enviar {
+    background: linear-gradient(135deg, var(--azul-medio), var(--azul-claro));
+    color: var(--branco);
+    border: none;
+    padding: 0.85rem 2.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.5px;
+}
+
+#btn-enviar:hover {
+    opacity: 0.9;
+}
+
+#btn-enviar:active {
+    transform: scale(0.98);
+}
+
+#btn-enviar:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#btn-limpar {
+    background: transparent;
+    color: var(--cinza-texto);
+    border: 1px solid var(--cinza-borda);
+    padding: 0.85rem 2rem;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#btn-limpar:hover {
+    background: var(--cinza-bg);
+}
+
+/* ===== Mensagem de status ===== */
+.mensagem-status {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 5px;
+    margin-top: 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.mensagem-status.sucesso {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.mensagem-status.erro {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* ===== Footer ===== */
+footer {
+    background: var(--azul-escuro);
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    padding: 1.25rem 1rem;
+    font-size: 0.85rem;
+    margin-top: 2rem;
+    border-top: 3px solid var(--dourado);
+}
+
+.footer-note {
+    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    opacity: 0.65;
+}
+
+/* ===== Responsivo ===== */
+@media (max-width: 640px) {
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .logo {
+        width: 60px;
+    }
+
+    .header-text h1 {
+        font-size: 1.25rem;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .form-row .form-group {
+        margin-top: 1rem;
+    }
+
+    .form-group-small,
+    .form-group-large {
+        flex: 1;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #btn-enviar,
+    #btn-limpar {
+        width: 100%;
+    }
+
+    fieldset {
+        padding: 1rem;
+    }
+}
