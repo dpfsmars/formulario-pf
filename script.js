@@ -7,7 +7,7 @@
 const EMAILJS_PUBLIC_KEY = '0rBAZ3QwWOcCMrD47';
 const EMAILJS_SERVICE_ID = 'service_uag29i2';
 const EMAILJS_TEMPLATE_ID = 'template_9o3zsfp';
-const EMAIL_DESTINO = 'leonei.mma@gmail.com'; // TESTE — trocar para nucart.sma.rs@pf.gov.br em produção
+const EMAIL_DESTINO = 'nucart.sma.rs@pf.gov.br';
 
 // Inicializa o EmailJS
 emailjs.init(EMAILJS_PUBLIC_KEY);
