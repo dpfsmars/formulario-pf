@@ -271,8 +271,23 @@ footer {
     border-top: 3px solid var(--dourado);
 }
 
+.footer-endereco {
+    margin-top: 0.3rem;
+    font-size: 0.85rem;
+}
+
+.whatsapp-link {
+    color: #25d366;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.whatsapp-link:hover {
+    text-decoration: underline;
+}
+
 .footer-note {
-    margin-top: 0.4rem;
+    margin-top: 0.6rem;
     font-size: 0.78rem;
     opacity: 0.65;
 }
