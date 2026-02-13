@@ -153,6 +153,18 @@ function validarFormulario() {
         valido = false;
     }
 
+    // Validação dos documentos (se anexados, máximo 5MB cada)
+    var docFrente = document.getElementById('doc_identidade');
+    if (docFrente.files.length > 0 && docFrente.files[0].size > 5 * 1024 * 1024) {
+        mostrarErro(docFrente, 'Arquivo muito grande (máximo 5MB).');
+        valido = false;
+    }
+    var docVerso = document.getElementById('doc_identidade_verso');
+    if (docVerso.files.length > 0 && docVerso.files[0].size > 5 * 1024 * 1024) {
+        mostrarErro(docVerso, 'Arquivo muito grande (máximo 5MB).');
+        valido = false;
+    }
+
     return valido;
 }
 
@@ -161,6 +173,63 @@ document.querySelectorAll('#form-qualificacao input, #form-qualificacao select')
     campo.addEventListener('input', () => limparErro(campo));
     campo.addEventListener('change', () => limparErro(campo));
 });
+
+// ============================================================
+// COMPRESSÃO DE IMAGEM
+// ============================================================
+
+function comprimirImagem(file, maxWidth, qualidade) {
+    return new Promise(function (resolve) {
+        if (!file) { resolve(null); return; }
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var img = new Image();
+            img.onload = function () {
+                var canvas = document.createElement('canvas');
+                var largura = img.width;
+                var altura = img.height;
+
+                if (largura > maxWidth) {
+                    altura = Math.round((altura * maxWidth) / largura);
+                    largura = maxWidth;
+                }
+
+                canvas.width = largura;
+                canvas.height = altura;
+                canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
+
+                resolve(canvas.toDataURL('image/jpeg', qualidade));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// ============================================================
+// PRÉ-VISUALIZAÇÃO DO DOCUMENTO
+// ============================================================
+
+function configurarPreview(inputId, previewId) {
+    document.getElementById(inputId).addEventListener('change', function () {
+        var preview = document.getElementById(previewId);
+        if (this.files && this.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                preview.hidden = false;
+            };
+            reader.readAsDataURL(this.files[0]);
+        } else {
+            preview.src = '';
+            preview.hidden = true;
+        }
+    });
+}
+
+configurarPreview('doc_identidade', 'preview-doc');
+configurarPreview('doc_identidade_verso', 'preview-doc-verso');
 
 // ============================================================
 // ENVIO DO FORMULÁRIO
@@ -197,38 +266,52 @@ document.getElementById('form-qualificacao').addEventListener('submit', function
         'CEP ' + document.getElementById('cep').value
     ].filter(Boolean).join(', ');
 
-    // Dados para o template do EmailJS
-    const dadosEmail = {
-        nome: document.getElementById('nome').value,
-        cpf: document.getElementById('cpf').value,
-        rg: document.getElementById('rg').value,
-        data_nascimento: document.getElementById('data_nascimento').value.split('-').reverse().join('/'),
-        estado_civil: document.getElementById('estado_civil').value,
-        profissao: document.getElementById('profissao').value,
-        escolaridade: document.getElementById('escolaridade').value,
-        nome_mae: document.getElementById('nome_mae').value,
-        nome_pai: document.getElementById('nome_pai').value || 'Não informado',
-        naturalidade: document.getElementById('naturalidade').value,
-        endereco: endereco,
-        telefone: document.getElementById('telefone').value,
-        email: document.getElementById('email').value || 'Não informado',
-        num_procedimento: document.getElementById('num_procedimento').value,
-        email_destino: EMAIL_DESTINO
-    };
+    // Comprime as imagens (se houver) e envia
+    var arquivoFrente = document.getElementById('doc_identidade').files[0];
+    var arquivoVerso = document.getElementById('doc_identidade_verso').files[0];
 
-    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, dadosEmail)
-        .then(function () {
-            mostrarMensagem('Dados enviados com sucesso! A Polícia Federal em Santa Maria receberá suas informações.', 'sucesso');
-            document.getElementById('form-qualificacao').reset();
-        })
-        .catch(function (erro) {
-            console.error('Erro ao enviar:', erro);
-            mostrarMensagem('Erro ao enviar os dados. Verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com a delegacia.', 'erro');
-        })
-        .finally(function () {
-            btn.disabled = false;
-            btn.textContent = 'Enviar Dados';
-        });
+    Promise.all([
+        comprimirImagem(arquivoFrente, 800, 0.6),
+        comprimirImagem(arquivoVerso, 800, 0.6)
+    ]).then(function (imagens) {
+
+        // Dados para o template do EmailJS
+        var dadosEmail = {
+            nome: document.getElementById('nome').value,
+            cpf: document.getElementById('cpf').value,
+            rg: document.getElementById('rg').value,
+            data_nascimento: document.getElementById('data_nascimento').value.split('-').reverse().join('/'),
+            estado_civil: document.getElementById('estado_civil').value,
+            profissao: document.getElementById('profissao').value,
+            escolaridade: document.getElementById('escolaridade').value,
+            nome_mae: document.getElementById('nome_mae').value,
+            nome_pai: document.getElementById('nome_pai').value || 'Não informado',
+            naturalidade: document.getElementById('naturalidade').value,
+            endereco: endereco,
+            telefone: document.getElementById('telefone').value,
+            email: document.getElementById('email').value || 'Não informado',
+            num_procedimento: document.getElementById('num_procedimento').value,
+            email_destino: EMAIL_DESTINO,
+            doc_identidade: imagens[0] || 'Não anexado',
+            doc_identidade_verso: imagens[1] || 'Não anexado'
+        };
+
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, dadosEmail)
+            .then(function () {
+                mostrarMensagem('Dados enviados com sucesso! A Polícia Federal em Santa Maria receberá suas informações.', 'sucesso');
+                document.getElementById('form-qualificacao').reset();
+                document.getElementById('preview-doc').hidden = true;
+                document.getElementById('preview-doc-verso').hidden = true;
+            })
+            .catch(function (erro) {
+                console.error('Erro ao enviar:', erro);
+                mostrarMensagem('Erro ao enviar os dados. Verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com a delegacia.', 'erro');
+            })
+            .finally(function () {
+                btn.disabled = false;
+                btn.textContent = 'Enviar Dados';
+            });
+    });
 });
 
 // Limpa mensagem de status ao resetar o formulário

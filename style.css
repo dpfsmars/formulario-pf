@@ -158,6 +158,32 @@ legend {
     box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.15);
 }
 
+.form-group input[type="file"] {
+    padding: 0.5rem;
+    border: 2px dashed var(--cinza-borda);
+    border-radius: 4px;
+    background: var(--cinza-bg);
+    cursor: pointer;
+}
+
+.form-group input[type="file"]:hover {
+    border-color: var(--azul-claro);
+}
+
+.file-hint {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.preview-img {
+    margin-top: 0.5rem;
+    max-width: 100%;
+    max-height: 300px;
+    border: 1px solid var(--cinza-borda);
+    border-radius: 4px;
+    object-fit: contain;
+}
+
 .form-group input.invalid,
 .form-group select.invalid {
     border-color: var(--vermelho);

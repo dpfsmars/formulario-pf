@@ -180,9 +180,28 @@
                 </div>
             </fieldset>
 
-            <!-- Seção 5: Dados do Procedimento -->
+            <!-- Seção 5: Documento de Identidade -->
             <fieldset>
-                <legend>5. Dados do Procedimento</legend>
+                <legend>5. Documento de Identidade</legend>
+
+                <div class="form-group">
+                    <label for="doc_identidade">Foto do documento de identidade (frente) </label>
+                    <input type="file" id="doc_identidade" name="doc_identidade" accept="image/*" capture="environment">
+                    <span class="file-hint">Tire uma foto ou selecione da galeria (máx. 5MB)</span>
+                    <img id="preview-doc" class="preview-img" hidden alt="Pré-visualização do documento (frente)">
+                </div>
+
+                <div class="form-group">
+                    <label for="doc_identidade_verso">Foto do documento de identidade (verso)</label>
+                    <input type="file" id="doc_identidade_verso" name="doc_identidade_verso" accept="image/*" capture="environment">
+                    <span class="file-hint">Opcional — envie o verso se o documento for plastificado</span>
+                    <img id="preview-doc-verso" class="preview-img" hidden alt="Pré-visualização do documento (verso)">
+                </div>
+            </fieldset>
+
+            <!-- Seção 6: Dados do Procedimento -->
+            <fieldset>
+                <legend>6. Dados do Procedimento</legend>
 
                 <div class="form-group">
                     <label for="num_procedimento">Nº do Procedimento / IPL <span class="required-mark">*</span></label>
