@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qualificação de Intimados — Polícia Federal em Santa Maria</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ===== Estilos específicos da versão OCR ===== */
+        .ocr-section {
+            background: var(--branco);
+            border: 2px solid var(--dourado);
+            border-radius: 6px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .ocr-section legend {
+            color: var(--azul-escuro);
+            font-size: 1.15rem;
+        }
+
+        .ocr-instrucao {
+            background: #eaf1fb;
+            border-left: 4px solid var(--azul-claro);
+            padding: 0.85rem 1rem;
+            border-radius: 4px;
+            font-size: 0.92rem;
+            color: #1a3a6b;
+            margin-bottom: 1rem;
+        }
+
+        .ocr-instrucao strong {
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        #btn-extrair {
+            background: linear-gradient(135deg, #1a7a4a, #27ae60);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.75rem;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: opacity 0.2s, transform 0.1s;
+            width: 100%;
+        }
+
+        #btn-extrair:hover { opacity: 0.9; }
+        #btn-extrair:active { transform: scale(0.98); }
+        #btn-extrair:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .ocr-status {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            min-height: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .ocr-status.processando { color: #1a3a6b; }
+        .ocr-status.sucesso    { color: #155724; }
+        .ocr-status.aviso      { color: #856404; }
+        .ocr-status.erro       { color: #721c24; }
+
+        .ocr-progress {
+            height: 6px;
+            background: #dde3ea;
+            border-radius: 3px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+            display: none;
+        }
+
+        .ocr-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--azul-claro), var(--dourado));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .ocr-campos-extraidos {
+            margin-top: 1rem;
+            padding: 0.85rem 1rem;
+            background: #f0faf4;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            font-size: 0.88rem;
+            display: none;
+        }
+
+        .ocr-campos-extraidos strong {
+            display: block;
+            margin-bottom: 0.4rem;
+            color: #155724;
+        }
+
+        .ocr-campos-extraidos ul {
+            margin: 0;
+            padding-left: 1.2rem;
+            color: #2d6a4f;
+        }
+
+        .ocr-campos-extraidos li { margin-bottom: 0.2rem; }
+
+        .badge-ocr {
+            display: inline-block;
+            background: var(--dourado);
+            color: var(--azul-escuro);
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 0.15rem 0.45rem;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            margin-left: 0.4rem;
+        }
+
+        input.preenchido-ocr {
+            background-color: #f0faf4 !important;
+            border-color: #27ae60 !important;
+        }
+
+        .separador-ocr {
+            text-align: center;
+            margin: 1.5rem 0 0.5rem;
+            color: #888;
+            font-size: 0.85rem;
+            position: relative;
+        }
+
+        .separador-ocr::before,
+        .separador-ocr::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 38%;
+            height: 1px;
+            background: var(--cinza-borda);
+        }
+
+        .separador-ocr::before { left: 0; }
+        .separador-ocr::after  { right: 0; }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(26,58,107,0.2);
+            border-top-color: var(--azul-claro);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <img src="brasao-pf.png" alt="Brasão da Polícia Federal" class="logo">
+            <div class="header-text">
+                <h1>Polícia Federal</h1>
+                <p>Delegacia de Polícia Federal em Santa Maria/RS</p>
+                <p class="subtitle">Formulário de Qualificação de Intimados</p>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="instructions">
+            <p><strong>Orientação:</strong> Fotografe ou envie a imagem do seu documento de identidade (RG ou CNH). O sistema tentará preencher os dados automaticamente. Revise as informações extraídas, complete os campos em branco e clique em <em>Enviar</em>.</p>
+        </div>
+
+        <form id="form-qualificacao" novalidate>
+
+            <!-- Seção 0: Documento (OCR) — primeiro campo -->
+            <fieldset class="ocr-section">
+                <legend>1. Documento de Identidade <span class="badge-ocr">OCR</span></legend>
+
+                <div class="ocr-instrucao">
+                    <strong>Como funciona:</strong>
+                    Envie a foto da frente do seu RG ou CNH. Após o envio, clique em
+                    <em>"Extrair dados do documento"</em>. O sistema lerá as informações e
+                    preencherá os campos automaticamente. Você poderá corrigir qualquer dado antes de enviar.
+                </div>
+
+                <div class="form-group">
+                    <label for="doc_identidade">Foto do documento (frente) <span class="required-mark">*</span></label>
+                    <input type="file" id="doc_identidade" name="doc_identidade" accept="image/*,application/pdf">
+                    <span class="file-hint">Foto, imagem ou PDF do documento (máx. 5MB)</span>
+                    <img id="preview-doc" class="preview-img" hidden alt="Pré-visualização do documento (frente)">
+                </div>
+
+                <button type="button" id="btn-extrair" disabled>
+                    Extrair dados do documento
+                </button>
+
+                <div class="ocr-progress" id="ocr-progress"><div class="ocr-progress-bar" id="ocr-progress-bar"></div></div>
+                <div class="ocr-status" id="ocr-status"></div>
+                <div class="ocr-campos-extraidos" id="ocr-campos-extraidos">
+                    <strong>Campos preenchidos automaticamente:</strong>
+                    <ul id="ocr-lista-campos"></ul>
+                </div>
+
+                <div class="separador-ocr">verso do documento (opcional)</div>
+
+                <div class="form-group">
+                    <label for="doc_identidade_verso">Foto do documento (verso)</label>
+                    <input type="file" id="doc_identidade_verso" name="doc_identidade_verso" accept="image/*">
+                    <span class="file-hint">Opcional — envie o verso se o documento for plastificado</span>
+                    <img id="preview-doc-verso" class="preview-img" hidden alt="Pré-visualização do documento (verso)">
+                </div>
+            </fieldset>
+
+            <!-- Seção 1: Dados Pessoais -->
+            <fieldset>
+                <legend>2. Dados Pessoais</legend>
+
+                <div class="form-group">
+                    <label for="nome">Nome completo <span class="required-mark">*</span></label>
+                    <input type="text" id="nome" name="nome" required placeholder="Digite seu nome completo">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cpf">CPF <span class="required-mark">*</span></label>
+                        <input type="text" id="cpf" name="cpf" required placeholder="000.000.000-00" maxlength="14">
+                    </div>
+                    <div class="form-group">
+                        <label for="rg">RG / Órgão Expedidor <span class="required-mark">*</span></label>
+                        <input type="text" id="rg" name="rg" required placeholder="Ex: 1234567 SSP/RS">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="data_nascimento">Data de nascimento <span class="required-mark">*</span></label>
+                        <input type="date" id="data_nascimento" name="data_nascimento" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="estado_civil">Estado civil <span class="required-mark">*</span></label>
+                        <select id="estado_civil" name="estado_civil" required>
+                            <option value="">Selecione...</option>
+                            <option value="Solteiro(a)">Solteiro(a)</option>
+                            <option value="Casado(a)">Casado(a)</option>
+                            <option value="Divorciado(a)">Divorciado(a)</option>
+                            <option value="Viúvo(a)">Viúvo(a)</option>
+                            <option value="Separado(a)">Separado(a)</option>
+                            <option value="União Estável">União Estável</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="profissao">Profissão / Ocupação <span class="required-mark">*</span></label>
+                        <input type="text" id="profissao" name="profissao" required placeholder="Ex: Servidor público">
+                    </div>
+                    <div class="form-group">
+                        <label for="escolaridade">Escolaridade <span class="required-mark">*</span></label>
+                        <select id="escolaridade" name="escolaridade" required>
+                            <option value="">Selecione...</option>
+                            <option value="Fundamental Incompleto">Fundamental Incompleto</option>
+                            <option value="Fundamental Completo">Fundamental Completo</option>
+                            <option value="Médio Incompleto">Médio Incompleto</option>
+                            <option value="Médio Completo">Médio Completo</option>
+                            <option value="Superior Incompleto">Superior Incompleto</option>
+                            <option value="Superior Completo">Superior Completo</option>
+                            <option value="Pós-graduação">Pós-graduação</option>
+                            <option value="Mestrado">Mestrado</option>
+                            <option value="Doutorado">Doutorado</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Seção 2: Filiação e Naturalidade -->
+            <fieldset>
+                <legend>3. Filiação e Naturalidade</legend>
+
+                <div class="form-group">
+                    <label for="nome_mae">Nome da mãe <span class="required-mark">*</span></label>
+                    <input type="text" id="nome_mae" name="nome_mae" required placeholder="Nome completo da mãe">
+                </div>
+
+                <div class="form-group">
+                    <label for="nome_pai">Nome do pai</label>
+                    <input type="text" id="nome_pai" name="nome_pai" placeholder="Nome completo do pai (opcional)">
+                </div>
+
+                <div class="form-group">
+                    <label for="naturalidade">Naturalidade (Cidade/UF) <span class="required-mark">*</span></label>
+                    <input type="text" id="naturalidade" name="naturalidade" required placeholder="Ex: Santa Maria/RS">
+                </div>
+            </fieldset>
+
+            <!-- Seção 3: Endereço -->
+            <fieldset>
+                <legend>4. Endereço</legend>
+
+                <div class="form-row">
+                    <div class="form-group form-group-small">
+                        <label for="cep">CEP <span class="required-mark">*</span></label>
+                        <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9">
+                    </div>
+                    <div class="form-group form-group-large">
+                        <label for="rua">Rua / Logradouro <span class="required-mark">*</span></label>
+                        <input type="text" id="rua" name="rua" required placeholder="Ex: Rua dos Andradas">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group form-group-small">
+                        <label for="numero">Nº <span class="required-mark">*</span></label>
+                        <input type="text" id="numero" name="numero" required placeholder="Nº">
+                    </div>
+                    <div class="form-group">
+                        <label for="complemento">Complemento</label>
+                        <input type="text" id="complemento" name="complemento" placeholder="Apto, bloco, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label for="bairro">Bairro <span class="required-mark">*</span></label>
+                        <input type="text" id="bairro" name="bairro" required placeholder="Bairro">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group form-group-large">
+                        <label for="cidade">Cidade <span class="required-mark">*</span></label>
+                        <input type="text" id="cidade" name="cidade" required placeholder="Cidade">
+                    </div>
+                    <div class="form-group form-group-small">
+                        <label for="uf">UF <span class="required-mark">*</span></label>
+                        <select id="uf" name="uf" required>
+                            <option value="">UF</option>
+                            <option value="AC">AC</option><option value="AL">AL</option>
+                            <option value="AP">AP</option><option value="AM">AM</option>
+                            <option value="BA">BA</option><option value="CE">CE</option>
+                            <option value="DF">DF</option><option value="ES">ES</option>
+                            <option value="GO">GO</option><option value="MA">MA</option>
+                            <option value="MT">MT</option><option value="MS">MS</option>
+                            <option value="MG">MG</option><option value="PA">PA</option>
+                            <option value="PB">PB</option><option value="PR">PR</option>
+                            <option value="PE">PE</option><option value="PI">PI</option>
+                            <option value="RJ">RJ</option><option value="RN">RN</option>
+                            <option value="RS">RS</option><option value="RO">RO</option>
+                            <option value="RR">RR</option><option value="SC">SC</option>
+                            <option value="SP">SP</option><option value="SE">SE</option>
+                            <option value="TO">TO</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Seção 4: Contato -->
+            <fieldset>
+                <legend>5. Contato</legend>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="telefone">Telefone <span class="required-mark">*</span></label>
+                        <input type="text" id="telefone" name="telefone" required placeholder="(00) 00000-0000" maxlength="15">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" placeholder="seu@email.com (opcional)">
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Seção 5: Dados do Procedimento -->
+            <fieldset>
+                <legend>6. Dados do Procedimento</legend>
+
+                <div class="form-group">
+                    <label for="num_procedimento">Nº do Procedimento / IPL <span class="required-mark">*</span></label>
+                    <input type="text" id="num_procedimento" name="num_procedimento" required placeholder="Número do inquérito ou procedimento">
+                </div>
+            </fieldset>
+
+            <div class="form-actions">
+                <button type="submit" id="btn-enviar">Enviar Dados</button>
+                <button type="reset" id="btn-limpar">Limpar Formulário</button>
+            </div>
+        </form>
+
+        <div id="mensagem-status" class="mensagem-status" hidden></div>
+    </main>
+
+    <footer>
+        <p>Polícia Federal — Delegacia de Polícia Federal em Santa Maria/RS</p>
+        <p class="footer-endereco">Rua Vale Machado, 1361, Centro, Santa Maria - RS, CEP 97010-530</p>
+        <p class="footer-endereco">Telefone/WhatsApp: <a href="https://wa.me/555532189030" target="_blank" class="whatsapp-link">(55) 3218-9030</a></p>
+        <p class="footer-note">Este formulário é de uso exclusivo para qualificação de pessoas intimadas. Os dados serão tratados conforme a LGPD.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- PDF.js — renderiza PDF em canvas para extração OCR -->
+    <script type="module">
+        import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs';
+        // Worker necessário para processar o PDF em thread separada
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
+        // Expõe no escopo global para acesso pelo script principal (não-módulo)
+        window.pdfjsLib = pdfjsLib;
+    </script>
+    <script>
+    // ============================================================
+    // CONFIGURAÇÃO DO EMAILJS
+    // ============================================================
+    const EMAILJS_PUBLIC_KEY = '0rBAZ3QwWOcCMrD47';
+    const EMAILJS_SERVICE_ID = 'service_uag29i2';
+    const EMAILJS_TEMPLATE_ID = 'template_9o3zsfp';
+    const EMAIL_DESTINO = 'nucart.sma.rs@pf.gov.br';
+
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+
+    // ============================================================
+    // MÁSCARAS DE CAMPOS
+    // ============================================================
+
+    function mascaraCPF(valor) {
+        return valor
+            .replace(/\D/g, '')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+
+    function mascaraTelefone(valor) {
+        const nums = valor.replace(/\D/g, '');
+        if (nums.length <= 10) {
+            return nums
+                .replace(/(\d{2})(\d)/, '($1) $2')
+                .replace(/(\d{4})(\d)/, '$1-$2');
+        }
+        return nums
+            .replace(/(\d{2})(\d)/, '($1) $2')
+            .replace(/(\d{5})(\d)/, '$1-$2');
+    }
+
+    function mascaraCEP(valor) {
+        return valor
+            .replace(/\D/g, '')
+            .replace(/(\d{5})(\d)/, '$1-$2');
+    }
+
+    document.getElementById('cpf').addEventListener('input', function () {
+        this.value = mascaraCPF(this.value);
+    });
+    document.getElementById('telefone').addEventListener('input', function () {
+        this.value = mascaraTelefone(this.value);
+    });
+    document.getElementById('cep').addEventListener('input', function () {
+        this.value = mascaraCEP(this.value);
+    });
+
+    // ============================================================
+    // VALIDAÇÃO DE CPF
+    // ============================================================
+
+    function validarCPF(cpf) {
+        cpf = cpf.replace(/\D/g, '');
+        if (cpf.length !== 11) return false;
+        if (/^(\d)\1{10}$/.test(cpf)) return false;
+
+        let soma = 0;
+        for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
+        let resto = (soma * 10) % 11;
+        if (resto === 10) resto = 0;
+        if (resto !== parseInt(cpf.charAt(9))) return false;
+
+        soma = 0;
+        for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
+        resto = (soma * 10) % 11;
+        if (resto === 10) resto = 0;
+        return resto === parseInt(cpf.charAt(10));
+    }
+
+    // ============================================================
+    // VALIDAÇÃO DO FORMULÁRIO
+    // ============================================================
+
+    function mostrarErro(campo, mensagem) {
+        campo.classList.add('invalid');
+        let errEl = campo.parentElement.querySelector('.error-msg');
+        if (!errEl) {
+            errEl = document.createElement('span');
+            errEl.classList.add('error-msg');
+            campo.parentElement.appendChild(errEl);
+        }
+        errEl.textContent = mensagem;
+    }
+
+    function limparErro(campo) {
+        campo.classList.remove('invalid');
+        const errEl = campo.parentElement.querySelector('.error-msg');
+        if (errEl) errEl.textContent = '';
+    }
+
+    function validarFormulario() {
+        let valido = true;
+        const campos = document.querySelectorAll('#form-qualificacao [required]');
+
+        campos.forEach(campo => {
+            limparErro(campo);
+            if (!campo.value.trim()) {
+                mostrarErro(campo, 'Este campo é obrigatório.');
+                valido = false;
+            }
+        });
+
+        const cpfCampo = document.getElementById('cpf');
+        limparErro(cpfCampo);
+        if (cpfCampo.value.trim() && !validarCPF(cpfCampo.value)) {
+            mostrarErro(cpfCampo, 'CPF inválido.');
+            valido = false;
+        } else if (!cpfCampo.value.trim()) {
+            mostrarErro(cpfCampo, 'Este campo é obrigatório.');
+            valido = false;
+        }
+
+        const telCampo = document.getElementById('telefone');
+        const telNum = telCampo.value.replace(/\D/g, '');
+        if (telNum.length > 0 && telNum.length < 10) {
+            mostrarErro(telCampo, 'Telefone inválido (mínimo 10 dígitos).');
+            valido = false;
+        }
+
+        const emailCampo = document.getElementById('email');
+        if (emailCampo.value.trim()) {
+            const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!regexEmail.test(emailCampo.value.trim())) {
+                mostrarErro(emailCampo, 'Email inválido.');
+                valido = false;
+            }
+        }
+
+        const cepCampo = document.getElementById('cep');
+        const cepNum = cepCampo.value.replace(/\D/g, '');
+        if (cepNum.length > 0 && cepNum.length < 8) {
+            mostrarErro(cepCampo, 'CEP inválido.');
+            valido = false;
+        }
+
+        var docFrente = document.getElementById('doc_identidade');
+        if (docFrente.files.length > 0 && docFrente.files[0].size > 5 * 1024 * 1024) {
+            mostrarErro(docFrente, 'Arquivo muito grande (máximo 5MB).');
+            valido = false;
+        }
+        var docVerso = document.getElementById('doc_identidade_verso');
+        if (docVerso.files.length > 0 && docVerso.files[0].size > 5 * 1024 * 1024) {
+            mostrarErro(docVerso, 'Arquivo muito grande (máximo 5MB).');
+            valido = false;
+        }
+
+        return valido;
+    }
+
+    document.querySelectorAll('#form-qualificacao input, #form-qualificacao select').forEach(campo => {
+        campo.addEventListener('input', () => limparErro(campo));
+        campo.addEventListener('change', () => limparErro(campo));
+    });
+
+    // ============================================================
+    // COMPRESSÃO DE IMAGEM
+    // ============================================================
+
+    function comprimirImagem(file, maxWidth, qualidade) {
+        return new Promise(function (resolve) {
+            if (!file) { resolve(null); return; }
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var img = new Image();
+                img.onload = function () {
+                    var canvas = document.createElement('canvas');
+                    var largura = img.width;
+                    var altura = img.height;
+                    if (largura > maxWidth) {
+                        altura = Math.round((altura * maxWidth) / largura);
+                        largura = maxWidth;
+                    }
+                    canvas.width = largura;
+                    canvas.height = altura;
+                    canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
+                    resolve(canvas.toDataURL('image/jpeg', qualidade));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ============================================================
+    // PRÉ-VISUALIZAÇÃO DO DOCUMENTO
+    // ============================================================
+
+    function configurarPreview(inputId, previewId) {
+        document.getElementById(inputId).addEventListener('change', function () {
+            var preview = document.getElementById(previewId);
+            if (this.files && this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    preview.hidden = false;
+                };
+                reader.readAsDataURL(this.files[0]);
+            } else {
+                preview.src = '';
+                preview.hidden = true;
+            }
+        });
+    }
+
+    configurarPreview('doc_identidade', 'preview-doc');
+    configurarPreview('doc_identidade_verso', 'preview-doc-verso');
+
+    // Habilita o botão de extração quando a frente for selecionada
+    document.getElementById('doc_identidade').addEventListener('change', function () {
+        document.getElementById('btn-extrair').disabled = !this.files || !this.files[0];
+        // Limpa resultado anterior ao trocar o arquivo
+        document.getElementById('ocr-status').textContent = '';
+        document.getElementById('ocr-status').className = 'ocr-status';
+        document.getElementById('ocr-campos-extraidos').style.display = 'none';
+        document.getElementById('ocr-progress').style.display = 'none';
+        document.getElementById('ocr-progress-bar').style.width = '0%';
+    });
+
+    // ============================================================
+    // OCR — GOOGLE CLOUD VISION API
+    // ============================================================
+
+    const GCV_API_KEY = 'AIzaSyD5x6hcVOmNqxRSXS-FCB-d2A5c3N3iOYM';
+    const GCV_URL = 'https://vision.googleapis.com/v1/images:annotate?key=' + GCV_API_KEY;
+
+    function definirStatusOCR(texto, classe) {
+        const el = document.getElementById('ocr-status');
+        el.className = 'ocr-status ' + classe;
+        el.innerHTML = (classe === 'processando')
+            ? '<span class="spinner"></span> ' + texto
+            : texto;
+    }
+
+    function toTitleCase(str) {
+        const prep = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'em', 'no', 'na'];
+        return str.toLowerCase().split(' ').map((p, i) =>
+            (i === 0 || !prep.includes(p)) ? p.charAt(0).toUpperCase() + p.slice(1) : p
+        ).join(' ');
+    }
+
+    /**
+     * Converte imagem (File) para base64 JPEG puro (sem prefixo data:...).
+     * Redimensiona para max 1600px antes de enviar.
+     */
+    function imagemParaBase64(file) {
+        return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var img = new Image();
+                img.onload = function () {
+                    var maxW = 1600;
+                    var escala = img.width > maxW ? maxW / img.width : 1;
+                    var w = Math.round(img.width  * escala);
+                    var h = Math.round(img.height * escala);
+                    var canvas = document.createElement('canvas');
+                    canvas.width  = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    // Remove prefixo "data:image/jpeg;base64,"
+                    var b64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+                    resolve(b64);
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    /**
+     * Converte PDF (File) para base64 JPEG puro usando PDF.js.
+     * Renderiza a primeira página em canvas com escala suficiente para boa leitura OCR.
+     */
+    function pdfParaBase64(file) {
+        return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var typedArray = new Uint8Array(e.target.result);
+
+                // PDF.js carregado como módulo ES — acessa via window.pdfjsLib
+                // definido pelo script de inicialização abaixo
+                var pdfjsLib = window.pdfjsLib;
+                if (!pdfjsLib) {
+                    reject(new Error('PDF.js ainda não carregado. Tente novamente em instantes.'));
+                    return;
+                }
+
+                pdfjsLib.getDocument({ data: typedArray }).promise
+                    .then(function (pdf) {
+                        return pdf.getPage(1); // apenas a frente do documento
+                    })
+                    .then(function (page) {
+                        // Escala 2.0 garante resolução adequada para OCR
+                        var escala = 2.0;
+                        var viewport = page.getViewport({ scale: escala });
+                        var canvas = document.createElement('canvas');
+                        canvas.width  = viewport.width;
+                        canvas.height = viewport.height;
+                        var ctx = canvas.getContext('2d');
+                        return page.render({ canvasContext: ctx, viewport: viewport }).promise
+                            .then(function () {
+                                var b64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+                                resolve(b64);
+                            });
+                    })
+                    .catch(reject);
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    /**
+     * Ponto de entrada unificado: detecta o tipo do arquivo e
+     * encaminha para imagemParaBase64 ou pdfParaBase64.
+     */
+    function arquivoParaBase64(file) {
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            return pdfParaBase64(file);
+        }
+        return imagemParaBase64(file);
+    }
+
+    /**
+     * Chama a Google Cloud Vision API com DOCUMENT_TEXT_DETECTION.
+     * Usa XMLHttpRequest (compatível com file://) em vez de fetch.
+     * Retorna o texto completo extraído.
+     */
+    function chamarVisionAPI(base64) {
+        return new Promise(function (resolve, reject) {
+            var corpo = JSON.stringify({
+                requests: [{
+                    image: { content: base64 },
+                    features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }],
+                    imageContext: { languageHints: ['pt', 'pt-BR'] }
+                }]
+            });
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', GCV_URL, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.timeout = 30000; // 30 segundos
+
+            xhr.onload = function () {
+                try {
+                    var json = JSON.parse(xhr.responseText);
+                    var anotacao = json.responses && json.responses[0];
+                    if (anotacao && anotacao.error) {
+                        reject(new Error(anotacao.error.message));
+                    } else if (anotacao && anotacao.fullTextAnnotation) {
+                        resolve(anotacao.fullTextAnnotation.text || '');
+                    } else {
+                        resolve('');
+                    }
+                } catch (e) {
+                    reject(new Error('Resposta inválida da API'));
+                }
+            };
+
+            xhr.onerror   = function () { reject(new Error('Erro de rede ao contactar a API do Google')); };
+            xhr.ontimeout = function () { reject(new Error('Tempo esgotado (30s). Verifique a conexão com a internet')); };
+
+            xhr.send(corpo);
+        });
+    }
+
+    /**
+     * Extrai campos de identidade brasileira (RG / CNH) do texto OCR.
+     * A Vision API retorna texto muito bem estruturado, permitindo
+     * regex mais diretos.
+     *
+     * Documentos testados e seus formatos:
+     *
+     * [1] CNH (Carteira Nacional de Habilitação)
+     *     - NOME\n<nome completo>
+     *     - FILIAÇÃO\n<prenome_pai>\n<sobrenome_pai>\n<prenome_mae>\n<sobrenome_mae>
+     *       (cada parte do nome em linha separada)
+     *     - LOCAL\n<cidade>, <UF>
+     *     - RG: <número> <SSP|PC>/UF [UF]
+     *     - CPF: <nnn.nnn.nnn-nn>
+     *
+     * [2] RG antigo SSP/RS (~1998, modelo anterior ao MR)
+     *     - NOMELARISSA... (NOME colado ao nome, sem espaço — artefato de OCR)
+     *     - REGISTRO\nGERAL\n<número>  (número isolado, sem órgão junto)
+     *     - FILIAÇÃO\n<prenome_pai>\n<sobrenome_pai>\n<nome_completo_mae>
+     *       (pai em 2 linhas de 1 palavra, mãe em 1 linha com nome completo)
+     *     - NATURALIDADE\n<cidade> <UF>  (UF separada por espaço, sem vírgula/barra)
+     *     - DATA DE NASCIMENTO\n<dd/mm/aaaa>
+     *     - DATA DE\nEXPEDIÇÃO <dd/mm/aaaa>
+     *     - CPF mascarado (***) — não extraível
+     *
+     * Ao testar novos tipos de documento, adicionar aqui as diferenças
+     * de formato encontradas para orientar ajustes futuros nas regex.
+     */
+    function parsearDadosDocumento(texto) {
+        const resultado = {};
+        // Normaliza quebras de linha e espaços extras
+        // Importante: substituir \r\n antes de \r para não gerar \n\n duplos
+        const t = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[ \t]+/g, ' ');
+
+        // --- Nome ---
+        // Formatos encontrados:
+        //   CNH: "NOME\nLEONEI MARUI..."       (quebra de linha após NOME)
+        //   RG antigo RS: "NOME LARISSA RUBIANA..."  (nome na mesma linha, sem quebra)
+        //
+        // ATENÇÃO: não usar \s+ entre NOME e o nome — \s inclui \n e pode atravessar
+        // linhas e capturar conteúdo incorreto. Usar [ \t]* (espaço horizontal) para
+        // o formato "na mesma linha", e \n\s* para o formato "linha seguinte".
+        // Remover fallback genérico que captura qualquer linha em maiúsculas (capturava
+        // "REGISTRO GERAL" antes do nome real).
+        const reNome = [
+            // CNH/RG: rótulo "NOME" seguido de quebra de linha, depois o nome
+            /(?:\d[\.\s]+)?NOME[ \t]*\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
+            // RG antigo RS: "NOMELARISSA..." ou "NOME LARISSA..." (zero ou mais espaços, sem quebra de linha)
+            // [ \t]* aceita zero espaços (OCR une NOME+nome sem separador)
+            // [^\n]{3,58} captura até o fim da linha (sem cruzar para próxima)
+            /\bNOME[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç][^\n]{2,57})/,
+        ];
+        for (const re of reNome) {
+            const m = t.match(re);
+            if (m && m[1] && m[1].trim().length > 4) {
+                // Garante que não capturou palavras-chave do documento como nome
+                const candidato = m[1].trim();
+                const palavrasProibidas = /^(REGISTRO|GERAL|CIVIL|FEDERAL|ESTADO|REPUBLICA|SECRETARIA|SEGURANCA|PUBLICA|FILIACAO|NATURALIDADE|NASCIMENTO)/i;
+                if (!palavrasProibidas.test(candidato)) {
+                    resultado.nome = toTitleCase(candidato);
+                    break;
+                }
+            }
+        }
+
+        // --- CPF ---
+        const mCPF = t.match(/\b(\d{3})[.\s]?(\d{3})[.\s]?(\d{3})[-\s]?(\d{2})\b/);
+        if (mCPF) {
+            resultado.cpf = `${mCPF[1]}.${mCPF[2]}.${mCPF[3]}-${mCPF[4]}`;
+        }
+
+        // --- RG ---
+        // CNH:      "5064337008 SSP/PC RS"       (órgão/categoria + UF separados por espaço)
+        // RG novo:  "1.234.567-8 SSP/RS"         (órgão/UF juntos com barra)
+        // RG antigo RS: "REGISTRO\nGERAL\n1078003439" (número após label em 2 linhas)
+        const reRG = [
+            /(?:REGISTRO\s+GERAL|RG|N[°º]\s*RG|DOC[\.\s]+IDENTIDADE[^\n]*)\n\s*(\d[\d.\s-]{4,14}\d)\s+(SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC)\/([A-Z]{2})\s+([A-Z]{2})?/i,
+            /(\d{7,12})\s+(SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC)\/([A-Z]{2})\s+([A-Z]{2})/i,
+            /(?:REGISTRO\s+GERAL|RG|N[°º]\s*RG)[:\s#]*(\d[\d.\s-]{4,14}\d)\s*(SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC)?[/-]?([A-Z]{2})?/i,
+            // RG antigo RS: número sozinho após "REGISTRO\nGERAL\n"
+            /REGISTRO\s*\n\s*GERAL\s*\n\s*(\d{6,12})/i,
+            /(\d{1,2}[.\s]?\d{3}[.\s]?\d{3}[-\s]?[\dX])\s*(SSP|DETRAN|IFP|SESP|SDS|PC|PM)?[/-]?([A-Z]{2})?/i,
+        ];
+        for (const re of reRG) {
+            const m = t.match(re);
+            if (m && m[1]) {
+                let rg = m[1].trim();
+                if (m[2]) rg += ' ' + m[2];
+                // CNH: órgão/UF + estado separado (ex: SSP/PC RS → SSP/PC-RS)
+                if (m[3] && m[4]) rg += '/' + m[3] + '-' + m[4];
+                else if (m[3]) rg += '/' + m[3];
+                resultado.rg = rg;
+                break;
+            }
+        }
+
+        // --- Data de Nascimento ---
+        const reDN = [
+            /(?:NASC(?:IMENTO)?|DATA\s+(?:DE\s+)?NASC(?:IMENTO)?)[:\s.]*(\d{2})[\/\-\s.](\d{2})[\/\-\s.](\d{4})/i,
+            /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/,
+        ];
+        for (const re of reDN) {
+            const m = t.match(re);
+            if (m) {
+                const ano = parseInt(m[3]);
+                if (ano >= 1900 && ano <= new Date().getFullYear()) {
+                    resultado.data_nascimento = `${m[3]}-${m[2]}-${m[1]}`;
+                    break;
+                }
+            }
+        }
+
+        // --- Filiação: Mãe e Pai ---
+        // Formatos conhecidos após FILIAÇÃO\n:
+        //   CNH:           4 linhas — prenome_pai / sobrenome_pai / prenome_mae / sobrenome_mae
+        //                  (cada parte do nome numa linha separada, 1-2 palavras por linha)
+        //   RG novo:       2 linhas — nome_completo_pai / nome_completo_mae
+        //   RG antigo RS:  3 linhas — prenome_pai / sobrenome_pai / nome_completo_mae
+        //                  Ex: "ELDONO\nSAVADINTZKY\nEUNICE MIRACI SAVADINTZKY"
+        //                  Heurística: linha1 e linha2 têm 1 palavra cada → junta como pai;
+        //                  linha3 tem 2+ palavras → é a mãe
+
+        // Captura até 4 linhas após FILIAÇÃO
+        const mFil = t.match(/FILIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]+)\n[ \t]*([^\n]+)(?:\n[ \t]*([^\n]+))?(?:\n[ \t]*([^\n]+))?/i);
+
+        if (mFil) {
+            const l1 = mFil[1] ? mFil[1].trim() : '';
+            const l2 = mFil[2] ? mFil[2].trim() : '';
+            const l3 = mFil[3] ? mFil[3].trim() : '';
+            const l4 = mFil[4] ? mFil[4].trim() : '';
+
+            const palavras = (s) => s.split(/\s+/).filter(Boolean).length;
+            const ehNomeCompleto = (s) => palavras(s) >= 2;
+            // Linha é só sobrenome/prenome isolado se tiver 1 palavra apenas
+            const ehFragmento = (s) => palavras(s) === 1;
+
+            if (ehFragmento(l1) && ehFragmento(l2) && l3) {
+                // RG antigo RS: prenome_pai + sobrenome_pai + nome_mae (3 linhas)
+                const pai = (l1 + ' ' + l2).trim();
+                if (pai.length > 4) resultado.nome_pai = toTitleCase(pai);
+                if (l3.length > 4) resultado.nome_mae = toTitleCase(l3);
+            } else if (ehFragmento(l1) && ehNomeCompleto(l2)) {
+                // 2 linhas: pai fragmentado + mãe completa (raro)
+                if (l1.length > 1) resultado.nome_pai = toTitleCase(l1);
+                resultado.nome_mae = toTitleCase(l2);
+            } else if (ehNomeCompleto(l1) && ehNomeCompleto(l2)) {
+                // RG novo: 2 linhas com nome completo cada
+                resultado.nome_pai = toTitleCase(l1);
+                resultado.nome_mae = toTitleCase(l2);
+            } else if (ehFragmento(l1) && ehFragmento(l2) && ehFragmento(l3) && l4) {
+                // CNH: 4 fragmentos — prenome+sobrenome_pai / prenome+sobrenome_mae
+                const pai = (l1 + ' ' + l2).trim();
+                const mae = (l3 + ' ' + l4).trim();
+                if (pai.length > 4) resultado.nome_pai = toTitleCase(pai);
+                if (mae.length > 4) resultado.nome_mae = toTitleCase(mae);
+            } else if (ehNomeCompleto(l1) && ehFragmento(l2) && l3 && ehFragmento(l3)) {
+                // CNH alternativo: nome_pai completo mas mãe em 2 linhas
+                resultado.nome_pai = toTitleCase(l1);
+                const mae = (l2 + ' ' + l3).trim();
+                if (mae.length > 4) resultado.nome_mae = toTitleCase(mae);
+            } else {
+                // Fallback genérico: primeira linha = pai, segunda = mãe
+                if (l1.length > 4) resultado.nome_pai = toTitleCase(l1);
+                if (l2.length > 4) resultado.nome_mae = toTitleCase(l2);
+            }
+        } else {
+            // Sem bloco FILIAÇÃO — tenta rótulos explícitos MÃE / PAI
+            const mMae = t.match(/(?:M[ÃA]E|NOME\s+DA\s+M[ÃA]E)[:\s]*\n?[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][^\n]{4,59})/i);
+            if (mMae && mMae[1].trim().length > 4) resultado.nome_mae = toTitleCase(mMae[1].trim());
+            const mPai = t.match(/(?:\bPAI\b|NOME\s+DO\s+PAI)[:\s]*\n?[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][^\n]{4,59})/i);
+            if (mPai && mPai[1].trim().length > 4) resultado.nome_pai = toTitleCase(mPai[1].trim());
+        }
+
+        // --- Naturalidade ---
+        // CNH:      "LOCAL\nSANTA MARIA, RS"       (vírgula antes da UF)
+        // RG novo:  "NATURALIDADE\nSANTA MARIA/RS"  (barra antes da UF)
+        // RG antigo RS: "NATURALIDADE\nCARAZINHO RS" (só espaço antes da UF)
+        const reNat = [
+            /\bLOCAL\s*\n\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇA-záàãâéêíóôõúüç ]{2,39}),\s*([A-Z]{2})/i,
+            /(?:NATURALIDADE|LOCAL\s+DE\s+NASC(?:IMENTO)?)[:\s]*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇA-záàãâéêíóôõúüç ]{2,39})[\/,]\s*([A-Z]{2})/i,
+            // RG antigo: "NATURALIDADE\nCARAZINHO RS" — UF separada só por espaço no fim da linha
+            /(?:NATURALIDADE)[:\s]*\n\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇA-záàãâéêíóôõúüç ]{2,39})\s+([A-Z]{2})\b/i,
+        ];
+        for (const re of reNat) {
+            const m = t.match(re);
+            if (m && m[1].trim().length > 2) {
+                resultado.naturalidade = toTitleCase(m[1].trim()) + '/' + m[2].trim();
+                break;
+            }
+        }
+
+        return resultado;
+    }
+
+    function preencherCampo(id, valor) {
+        if (!valor) return false;
+        const el = document.getElementById(id);
+        if (!el || el.value.trim()) return false;
+        el.value = (id === 'cpf') ? mascaraCPF(valor.replace(/\D/g, '')) : valor;
+        el.classList.add('preenchido-ocr');
+        return true;
+    }
+
+    document.getElementById('btn-extrair').addEventListener('click', function () {
+        var input = document.getElementById('doc_identidade');
+        if (!input.files || !input.files[0]) return;
+
+        var btn = this;
+        btn.disabled = true;
+
+        var progressEl  = document.getElementById('ocr-progress');
+        var progressBar = document.getElementById('ocr-progress-bar');
+        progressEl.style.display = 'block';
+        progressBar.style.width  = '0%';
+        document.getElementById('ocr-campos-extraidos').style.display = 'none';
+
+        var isPDF = input.files[0].type === 'application/pdf' ||
+                    input.files[0].name.toLowerCase().endsWith('.pdf');
+        definirStatusOCR(isPDF ? 'Convertendo PDF...' : 'Preparando imagem...', 'processando');
+        progressBar.style.width = '10%';
+
+        arquivoParaBase64(input.files[0])
+            .then(function (base64) {
+                definirStatusOCR('Enviando para reconhecimento...', 'processando');
+                progressBar.style.width = '40%';
+                return chamarVisionAPI(base64);
+            })
+            .then(function (texto) {
+                progressBar.style.width = '85%';
+                definirStatusOCR('Processando resultado...', 'processando');
+
+                var extraido = parsearDadosDocumento(texto);
+
+                var mapeamento = {
+                    nome:            'Nome',
+                    cpf:             'CPF',
+                    rg:              'RG / Órgão Expedidor',
+                    data_nascimento: 'Data de Nascimento',
+                    nome_mae:        'Nome da Mãe',
+                    nome_pai:        'Nome do Pai',
+                    naturalidade:    'Naturalidade',
+                };
+
+                var preenchidos = [];
+                Object.keys(mapeamento).forEach(function (campo) {
+                    if (preencherCampo(campo, extraido[campo])) preenchidos.push(mapeamento[campo]);
+                });
+
+                progressBar.style.width = '100%';
+                progressEl.style.display = 'none';
+
+                if (preenchidos.length > 0) {
+                    definirStatusOCR(
+                        preenchidos.length + ' campo(s) preenchido(s) automaticamente. Revise antes de enviar.',
+                        'sucesso'
+                    );
+                    document.getElementById('ocr-lista-campos').innerHTML =
+                        preenchidos.map(function (c) { return '<li>' + c + '</li>'; }).join('');
+                    document.getElementById('ocr-campos-extraidos').style.display = 'block';
+                } else {
+                    definirStatusOCR(
+                        'Imagem processada, mas nenhum campo identificado. Preencha manualmente.',
+                        'aviso'
+                    );
+                }
+            })
+            .catch(function (err) {
+                progressEl.style.display = 'none';
+                var msgErro = (err && err.message && err.message.length < 200) ? err.message : 'verifique a conexão com a internet';
+                definirStatusOCR('Erro: ' + msgErro + '. Preencha os campos manualmente.', 'erro');
+                console.error('OCR erro:', err);
+            })
+            .finally(function () {
+                btn.disabled = false;
+            });
+    });
+
+    // ============================================================
+    // ENVIO DO FORMULÁRIO
+    // ============================================================
+
+    function mostrarMensagem(texto, tipo) {
+        const el = document.getElementById('mensagem-status');
+        el.textContent = texto;
+        el.className = 'mensagem-status ' + tipo;
+        el.hidden = false;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    document.getElementById('form-qualificacao').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        if (!validarFormulario()) {
+            const primeiroErro = document.querySelector('.invalid');
+            if (primeiroErro) primeiroErro.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
+        const btn = document.getElementById('btn-enviar');
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+
+        const endereco = [
+            document.getElementById('rua').value,
+            'nº ' + document.getElementById('numero').value,
+            document.getElementById('complemento').value,
+            document.getElementById('bairro').value,
+            document.getElementById('cidade').value + '/' + document.getElementById('uf').value,
+            'CEP ' + document.getElementById('cep').value
+        ].filter(Boolean).join(', ');
+
+        var arquivoFrente = document.getElementById('doc_identidade').files[0];
+        var arquivoVerso = document.getElementById('doc_identidade_verso').files[0];
+
+        Promise.all([
+            comprimirImagem(arquivoFrente, 800, 0.6),
+            comprimirImagem(arquivoVerso, 800, 0.6)
+        ]).then(function (imagens) {
+
+            var dadosEmail = {
+                nome:              document.getElementById('nome').value,
+                cpf:               document.getElementById('cpf').value,
+                rg:                document.getElementById('rg').value,
+                data_nascimento:   document.getElementById('data_nascimento').value.split('-').reverse().join('/'),
+                estado_civil:      document.getElementById('estado_civil').value,
+                profissao:         document.getElementById('profissao').value,
+                escolaridade:      document.getElementById('escolaridade').value,
+                nome_mae:          document.getElementById('nome_mae').value,
+                nome_pai:          document.getElementById('nome_pai').value || 'Não informado',
+                naturalidade:      document.getElementById('naturalidade').value,
+                endereco:          endereco,
+                telefone:          document.getElementById('telefone').value,
+                email:             document.getElementById('email').value || 'Não informado',
+                num_procedimento:  document.getElementById('num_procedimento').value,
+                email_destino:     EMAIL_DESTINO,
+                doc_identidade:       imagens[0] || 'Não anexado',
+                doc_identidade_verso: imagens[1] || 'Não anexado'
+            };
+
+            emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, dadosEmail)
+                .then(function () {
+                    mostrarMensagem('Dados enviados com sucesso! A Polícia Federal em Santa Maria receberá suas informações.', 'sucesso');
+                    document.getElementById('form-qualificacao').reset();
+                    document.getElementById('preview-doc').hidden = true;
+                    document.getElementById('preview-doc-verso').hidden = true;
+                    document.getElementById('ocr-campos-extraidos').style.display = 'none';
+                    document.getElementById('ocr-status').textContent = '';
+                    document.getElementById('btn-extrair').disabled = true;
+                })
+                .catch(function (erro) {
+                    console.error('Erro ao enviar:', erro);
+                    mostrarMensagem('Erro ao enviar os dados. Verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com a delegacia.', 'erro');
+                })
+                .finally(function () {
+                    btn.disabled = false;
+                    btn.textContent = 'Enviar Dados';
+                });
+        });
+    });
+
+    // Limpa estado ao resetar o formulário
+    document.getElementById('form-qualificacao').addEventListener('reset', function () {
+        document.getElementById('mensagem-status').hidden = true;
+        document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+        document.querySelectorAll('.error-msg').forEach(el => el.textContent = '');
+        document.querySelectorAll('.preenchido-ocr').forEach(el => el.classList.remove('preenchido-ocr'));
+        document.getElementById('ocr-campos-extraidos').style.display = 'none';
+        document.getElementById('ocr-status').textContent = '';
+        document.getElementById('ocr-status').className = 'ocr-status';
+        document.getElementById('ocr-progress').style.display = 'none';
+        document.getElementById('ocr-progress-bar').style.width = '0%';
+        document.getElementById('btn-extrair').disabled = true;
+    });
+
+    // ============================================================
+    // BUSCA DE CEP VIA API (ViaCEP)
+    // ============================================================
+
+    document.getElementById('cep').addEventListener('blur', function () {
+        const cep = this.value.replace(/\D/g, '');
+        if (cep.length !== 8) return;
+
+        fetch('https://viacep.com.br/ws/' + cep + '/json/')
+            .then(res => res.json())
+            .then(data => {
+                if (data.erro) return;
+                if (data.logradouro) document.getElementById('rua').value = data.logradouro;
+                if (data.bairro)     document.getElementById('bairro').value = data.bairro;
+                if (data.localidade) document.getElementById('cidade').value = data.localidade;
+                if (data.uf)         document.getElementById('uf').value = data.uf;
+            })
+            .catch(() => {});
+    });
+    </script>
+</body>
+</html>
