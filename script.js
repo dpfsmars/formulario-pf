@@ -182,6 +182,14 @@ function comprimirImagem(file, maxWidth, qualidade) {
     return new Promise(function (resolve) {
         if (!file) { resolve(null); return; }
 
+        // PDFs não podem ser desenhados em canvas — envia como base64 direto
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            var readerPDF = new FileReader();
+            readerPDF.onload = function (e) { resolve(e.target.result); };
+            readerPDF.readAsDataURL(file);
+            return;
+        }
+
         var reader = new FileReader();
         reader.onload = function (e) {
             var img = new Image();
