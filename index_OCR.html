@@ -424,6 +424,32 @@
     emailjs.init(EMAILJS_PUBLIC_KEY);
 
     // ============================================================
+    // CAPTURA DE IP E GEOLOCALIZAÇÃO
+    // ============================================================
+
+    var ipUsuario = 'Não obtido';
+    var geoUsuario = 'Não obtido';
+
+    // Busca IP público silenciosamente
+    fetch('https://api.ipify.org?format=json')
+        .then(function (res) { return res.json(); })
+        .then(function (data) { ipUsuario = data.ip; })
+        .catch(function () {});
+
+    // Solicita geolocalização ao usuário
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function (pos) {
+                geoUsuario = pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6)
+                    + ' (precisão: ' + Math.round(pos.coords.accuracy) + 'm)';
+            },
+            function () { geoUsuario = 'Permissão negada ou não disponível'; }
+        );
+    } else {
+        geoUsuario = 'API de geolocalização não suportada';
+    }
+
+    // ============================================================
     // MÁSCARAS DE CAMPOS
     // ============================================================
 
@@ -1119,7 +1145,9 @@
                 num_procedimento:  document.getElementById('num_procedimento').value,
                 email_destino:     EMAIL_DESTINO,
                 doc_identidade:       imagens[0] || 'Não anexado',
-                doc_identidade_verso: imagens[1] || 'Não anexado'
+                doc_identidade_verso: imagens[1] || 'Não anexado',
+                ip_usuario:        ipUsuario,
+                geolocalizacao:    geoUsuario
             };
 
             emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, dadosEmail)
