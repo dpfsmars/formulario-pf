@@ -714,7 +714,9 @@
 
     /**
      * Converte PDF (File) para base64 JPEG puro usando PDF.js.
-     * Renderiza a primeira página em canvas com escala suficiente para boa leitura OCR.
+     * Renderiza TODAS as páginas do PDF concatenadas verticalmente num único
+     * canvas, garantindo que documentos com frente e verso em páginas separadas
+     * (ex: RG de MG) tenham todos os dados extraídos pelo OCR.
      */
     function pdfParaBase64(file) {
         return new Promise(function (resolve, reject) {
@@ -722,8 +724,6 @@
             reader.onload = function (e) {
                 var typedArray = new Uint8Array(e.target.result);
 
-                // PDF.js carregado como módulo ES — acessa via window.pdfjsLib
-                // definido pelo script de inicialização abaixo
                 var pdfjsLib = window.pdfjsLib;
                 if (!pdfjsLib) {
                     reject(new Error('PDF.js ainda não carregado. Tente novamente em instantes.'));
@@ -732,22 +732,54 @@
 
                 pdfjsLib.getDocument({ data: typedArray }).promise
                     .then(function (pdf) {
-                        return pdf.getPage(1); // apenas a frente do documento
-                    })
-                    .then(function (page) {
-                        // Escala 2.0 garante resolução adequada para OCR
-                        var escala = 2.0;
-                        var viewport = page.getViewport({ scale: escala });
-                        var canvas = document.createElement('canvas');
-                        canvas.width  = viewport.width;
-                        canvas.height = viewport.height;
-                        var ctx = canvas.getContext('2d');
-                        return page.render({ canvasContext: ctx, viewport: viewport }).promise
-                            .then(function () {
-                                var b64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
-                                resolve(b64);
+                        var numPages = pdf.numPages;
+                        var escala   = 2.0;
+
+                        // Carrega todas as páginas sequencialmente
+                        var paginas = [];
+                        var chain = Promise.resolve();
+                        for (var i = 1; i <= numPages; i++) {
+                            (function (num) {
+                                chain = chain.then(function () {
+                                    return pdf.getPage(num).then(function (p) { paginas.push(p); });
+                                });
+                            })(i);
+                        }
+
+                        return chain.then(function () {
+                            var viewports  = paginas.map(function (p) { return p.getViewport({ scale: escala }); });
+                            var totalW     = Math.max.apply(null, viewports.map(function (v) { return Math.round(v.width);  }));
+                            var totalH     = viewports.reduce(function (s, v)  { return s + Math.round(v.height); }, 0);
+
+                            var canvas     = document.createElement('canvas');
+                            canvas.width   = totalW;
+                            canvas.height  = totalH;
+                            var ctx        = canvas.getContext('2d');
+
+                            // Renderiza cada página e desenha no canvas principal
+                            var renderChain = Promise.resolve();
+                            var yOffset = 0;
+                            paginas.forEach(function (page, idx) {
+                                var vp = viewports[idx];
+                                var h  = Math.round(vp.height);
+                                (function (pg, viewport, y) {
+                                    renderChain = renderChain.then(function () {
+                                        var off = document.createElement('canvas');
+                                        off.width  = Math.round(viewport.width);
+                                        off.height = Math.round(viewport.height);
+                                        return pg.render({ canvasContext: off.getContext('2d'), viewport: viewport }).promise
+                                            .then(function () { ctx.drawImage(off, 0, y); });
+                                    });
+                                })(page, vp, yOffset);
+                                yOffset += h;
                             });
+
+                            return renderChain.then(function () {
+                                return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+                            });
+                        });
                     })
+                    .then(resolve)
                     .catch(reject);
             };
             reader.onerror = reject;
@@ -811,28 +843,47 @@
 
     /**
      * Extrai campos de identidade brasileira (RG / CNH) do texto OCR.
-     * A Vision API retorna texto muito bem estruturado, permitindo
-     * regex mais diretos.
      *
      * Documentos testados e seus formatos:
      *
-     * [1] CNH (Carteira Nacional de Habilitação)
+     * [1] CNH antiga — SENATRAN/RS, órgão SJS (~2004–2020)
      *     - NOME\n<nome completo>
-     *     - FILIAÇÃO\n<prenome_pai>\n<sobrenome_pai>\n<prenome_mae>\n<sobrenome_mae>
-     *       (cada parte do nome em linha separada)
-     *     - LOCAL\n<cidade>, <UF>
-     *     - RG: <número> <SSP|PC>/UF [UF]
+     *     - FILIAÇÃO\n<nome_pai>\n<nome_mae>  (um nome completo por linha)
+     *     - LOCAL\n<cidade>, <UF>  → local de EMISSÃO (não é naturalidade — ignorado)
+     *     - DOC. IDENTIDADE: <número> SJS/II RS  (órgão SJS, categoria/UF separados)
+     *     - CPF: <nnn.nnn.nnn-nn>
+     *     - Naturalidade: NÃO CONSTA neste modelo de CNH
+     *
+     * [2] CNH nova bilingue — SENATRAN/RS, modelo atual (~2020 em diante)
+     *     - "2 e 1. NOME E SOBRENOME\n<nome completo>"
+     *     - "3 DATA, LOCAL E UF DE NASCIMENTO\n<dd/mm/aaaa> <cidade>/<UF>"
+     *       (data e naturalidade juntas na mesma linha)
+     *     - FILIAÇÃO\n<nome_pai>\n<nome_mae>
+     *     - "4c DOC. IDENTIDADE / ÓRG. EMISSSOR / UF\n<número> SSP RS"
+     *       (sem barra entre órgão e UF)
+     *
+     * [3] RG moderno — IGP/SSP-RS (~2004 em diante)
+     *     - NOME\n<nome completo>
+     *     - FILIAÇÃO\n<nome_mae>  (pode conter apenas 1 genitor declarado)
+     *     - NATURALIDADE\n<cidade> <UF>  (espaço antes da UF)
+     *     - REGISTRO GERAL\n<número>  (apenas dígitos, sem formatação)
+     *     - CPF no verso do documento
+     *
+     * [4] RG — Polícia Civil/MG, Instituto de Identificação (~2014 em diante)
+     *     - REGISTRO GERAL\nMG-<número>  (prefixo de estado)
+     *     - NOME\n<nome completo>
+     *     - FILIAÇÃO\n<nome_pai>\n<nome_mae>
+     *     - NATURALIDADE\n<cidade>-<UF>  (hífen antes da UF)
+     *     - DATA DE NASCIMENTO\n<d/m/aaaa>  (dígito simples em dia e mês)
      *     - CPF: <nnn.nnn.nnn-nn>
      *
-     * [2] RG antigo SSP/RS (~1998, modelo anterior ao MR)
-     *     - NOMELARISSA... (NOME colado ao nome, sem espaço — artefato de OCR)
-     *     - REGISTRO\nGERAL\n<número>  (número isolado, sem órgão junto)
-     *     - FILIAÇÃO\n<prenome_pai>\n<sobrenome_pai>\n<nome_completo_mae>
-     *       (pai em 2 linhas de 1 palavra, mãe em 1 linha com nome completo)
-     *     - NATURALIDADE\n<cidade> <UF>  (UF separada por espaço, sem vírgula/barra)
-     *     - DATA DE NASCIMENTO\n<dd/mm/aaaa>
-     *     - DATA DE\nEXPEDIÇÃO <dd/mm/aaaa>
-     *     - CPF mascarado (***) — não extraível
+     * [5] Documento estrangeiro — Cédula de Identidade do Uruguai + CPF/Receita Federal
+     *     - "REPÚBLICA ORIENTAL DEL URUGUAY" identifica o documento
+     *     - Apellido / Sobrenome + Nombre / Nome → nome completo
+     *     - Fecha de Nacimiento / Data de Nascimento → data
+     *     - Lugar de Nacimiento / Local de Nascimento → naturalidade
+     *     - N° de Identidad → RG (marcado como doc. estrangeiro)
+     *     - CPF pode vir em cartão separado da Receita Federal na mesma imagem
      *
      * Ao testar novos tipos de documento, adicionar aqui as diferenças
      * de formato encontradas para orientar ajustes futuros nas regex.
@@ -840,33 +891,66 @@
     function parsearDadosDocumento(texto) {
         const resultado = {};
         // Normaliza quebras de linha e espaços extras
-        // Importante: substituir \r\n antes de \r para não gerar \n\n duplos
         const t = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[ \t]+/g, ' ');
 
+        // -------------------------------------------------------
+        // DETECÇÃO: DOCUMENTO ESTRANGEIRO (ex: Uruguai)
+        // -------------------------------------------------------
+        // Documentos bilíngues (espanhol/português) da América do Sul
+        // têm campos como "Apellido / Sobrenome", "Nombre / Nome", etc.
+        const ehEstrangeiro = /REP[UÚ]BLICA ORIENTAL DEL URUGUAY|DIRECCI[OÓ]N NACIONAL DE IDENTIFICACI[OÓ]N/i.test(t);
+        if (ehEstrangeiro) {
+            // Nome: combina Apellido + Nombre (ordem sobrenome → nome)
+            const mApelido = t.match(/Apellido\s*\/\s*Sobrenome\s*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇÑ][^\n]{1,39})/i);
+            const mNombre  = t.match(/Nombre\s*\/\s*Nome\s*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇÑ][^\n]{1,39})/i);
+            if (mApelido && mNombre) {
+                resultado.nome = toTitleCase((mNombre[1].trim() + ' ' + mApelido[1].trim()));
+            } else if (mApelido) {
+                resultado.nome = toTitleCase(mApelido[1].trim());
+            }
+            // Data de nascimento
+            const mFecha = t.match(/Fecha\s+de\s+Nacimiento\s*\/\s*Data\s+de\s+Nascimento\s*\n?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+            if (mFecha) {
+                const ano = parseInt(mFecha[3]);
+                if (ano >= 1900 && ano <= new Date().getFullYear()) {
+                    resultado.data_nascimento = `${mFecha[3]}-${mFecha[2].padStart(2,'0')}-${mFecha[1].padStart(2,'0')}`;
+                }
+            }
+            // Local de nascimento
+            const mLugar = t.match(/Lugar\s+de\s+Nacimiento\s*\/\s*Local\s+de\s+Nascimento\s*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇÑ][^\n]{1,39})/i);
+            if (mLugar) resultado.naturalidade = toTitleCase(mLugar[1].trim());
+            // Nº de identidade estrangeira como RG
+            // Rótulo pode ser bilíngue: "N° de Identidad / N° de Identidade" —
+            // [^\n]* ignora o restante da linha antes do número (próxima linha)
+            const mIdent = t.match(/N[°º][^\n]*[Ii]dentidad[^\n]*\n\s*([\d.,\-]+)/i);
+            if (mIdent) resultado.rg = mIdent[1].trim() + ' (doc. estrangeiro)';
+            // CPF do cartão da Receita Federal (pode vir na mesma imagem)
+            const mCPF = t.match(/\b(\d{3})[.\s]?(\d{3})[.\s]?(\d{3})[-\s]?(\d{2})\b/);
+            if (mCPF) resultado.cpf = `${mCPF[1]}.${mCPF[2]}.${mCPF[3]}-${mCPF[4]}`;
+            return resultado;
+        }
+
+        // -------------------------------------------------------
         // --- Nome ---
         // Formatos encontrados:
-        //   CNH: "NOME\nLEONEI MARUI..."       (quebra de linha após NOME)
-        //   RG antigo RS: "NOME LARISSA RUBIANA..."  (nome na mesma linha, sem quebra)
-        //
-        // ATENÇÃO: não usar \s+ entre NOME e o nome — \s inclui \n e pode atravessar
-        // linhas e capturar conteúdo incorreto. Usar [ \t]* (espaço horizontal) para
-        // o formato "na mesma linha", e \n\s* para o formato "linha seguinte".
-        // Remover fallback genérico que captura qualquer linha em maiúsculas (capturava
-        // "REGISTRO GERAL" antes do nome real).
+        //   CNH nova (bilíngue): "2 e 1. NOME E SOBRENOME\n<nome completo>"
+        //   CNH antiga / RG:     "NOME\n<nome completo>"
+        //   RG antigo RS:        "NOME<nome>" (sem espaço, artefato OCR)
+        //   RG MG (verso):       "NOME\n<nome completo>" (campo em destaque)
+        // -------------------------------------------------------
         const reNome = [
-            // CNH/RG: rótulo "NOME" seguido de quebra de linha, depois o nome
+            // CNH nova bilingue: "NOME E SOBRENOME" seguido de quebra + nome
+            /NOME\s+E\s+SOBRENOME[^\n]*\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
+            // CNH/RG padrão: rótulo "NOME" + quebra de linha + nome
             /(?:\d[\.\s]+)?NOME[ \t]*\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
-            // RG antigo RS: "NOMELARISSA..." ou "NOME LARISSA..." (zero ou mais espaços, sem quebra de linha)
-            // [ \t]* aceita zero espaços (OCR une NOME+nome sem separador)
-            // [^\n]{3,58} captura até o fim da linha (sem cruzar para próxima)
+            // RG antigo RS: "NOMELARISSA..." sem espaço/quebra
             /\bNOME[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç][^\n]{2,57})/,
         ];
         for (const re of reNome) {
             const m = t.match(re);
             if (m && m[1] && m[1].trim().length > 4) {
-                // Garante que não capturou palavras-chave do documento como nome
                 const candidato = m[1].trim();
-                const palavrasProibidas = /^(REGISTRO|GERAL|CIVIL|FEDERAL|ESTADO|REPUBLICA|SECRETARIA|SEGURANCA|PUBLICA|FILIACAO|NATURALIDADE|NASCIMENTO)/i;
+                const palavrasProibidas = /^(REGISTRO|GERAL|CIVIL|FEDERAL|ESTADO|REPUBLICA|SECRETARIA|SEGURANCA|PUBLICA|FILIACAO|NATURALIDADE|NASCIMENTO|SOBRENOME)/i;
                 if (!palavrasProibidas.test(candidato)) {
                     resultado.nome = toTitleCase(candidato);
                     break;
@@ -874,30 +958,47 @@
             }
         }
 
+        // -------------------------------------------------------
         // --- CPF ---
+        // -------------------------------------------------------
         const mCPF = t.match(/\b(\d{3})[.\s]?(\d{3})[.\s]?(\d{3})[-\s]?(\d{2})\b/);
         if (mCPF) {
             resultado.cpf = `${mCPF[1]}.${mCPF[2]}.${mCPF[3]}-${mCPF[4]}`;
         }
 
+        // -------------------------------------------------------
         // --- RG ---
-        // CNH:      "5064337008 SSP/PC RS"       (órgão/categoria + UF separados por espaço)
-        // RG novo:  "1.234.567-8 SSP/RS"         (órgão/UF juntos com barra)
-        // RG antigo RS: "REGISTRO\nGERAL\n1078003439" (número após label em 2 linhas)
+        // Formatos encontrados:
+        //   CNH antiga RS:  "6056926717 SJS/II RS"   (órgão SJS, categoria II, UF separada)
+        //   CNH nova RS:    "1122444001 SSP RS"       (espaço em vez de barra entre órgão e UF)
+        //   RG novo RS/SP:  "1.234.567-8 SSP/RS"     (barra entre órgão e UF)
+        //   RG MG:          "MG-1.742.603" ou "MG-14.614.325"  (prefixo de estado)
+        //   RG antigo RS:   "REGISTRO\nGERAL\n<número>"        (número sozinho)
+        // -------------------------------------------------------
+        const ORGAOS = 'SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC|SJS|IGP|PCMG|PCSP|PCRS';
         const reRG = [
-            /(?:REGISTRO\s+GERAL|RG|N[°º]\s*RG|DOC[\.\s]+IDENTIDADE[^\n]*)\n\s*(\d[\d.\s-]{4,14}\d)\s+(SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC)\/([A-Z]{2})\s+([A-Z]{2})?/i,
-            /(\d{7,12})\s+(SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC)\/([A-Z]{2})\s+([A-Z]{2})/i,
-            /(?:REGISTRO\s+GERAL|RG|N[°º]\s*RG)[:\s#]*(\d[\d.\s-]{4,14}\d)\s*(SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC)?[/-]?([A-Z]{2})?/i,
-            // RG antigo RS: número sozinho após "REGISTRO\nGERAL\n"
+            // RG com prefixo de estado: "MG-1.742.603" (RGs de MG e outros estados)
+            /REGISTRO\s+GERAL\s*\n?\s*([A-Z]{2}-[\d.]+)/i,
+            // RG após label com órgão e UF separados por barra: "9140108433 SSP/RS"
+            new RegExp(`(?:REGISTRO\\s+GERAL|RG|N[°º]\\s*RG|DOC[\\. ]+IDENTIDADE[^\\n]*)\\n\\s*(\\d[\\d.\\s-]{4,14}\\d)\\s+(${ORGAOS})\\/([A-Z]{2})\\s*([A-Z]{2})?`, 'i'),
+            // Número com órgão/barra/UF + UF adicional: "6056926717 SJS/II RS"
+            new RegExp(`(\\d{7,12})\\s+(${ORGAOS})\\/?([A-Z]{1,3})\\s+([A-Z]{2})\\b`, 'i'),
+            // Número com órgão e UF (sem barra, separados por espaço): "1122444001 SSP RS"
+            new RegExp(`(?:DOC[\\. ]+IDENTIDADE[^\\n]*|4c[^\\n]*)\\n\\s*(\\d{7,12})\\s+(${ORGAOS})\\s+([A-Z]{2})`, 'i'),
+            // RG moderno RS: "REGISTRO GERAL 9140108433" na mesma linha (sem quebra)
+            /REGISTRO\s+GERAL\s+(\d{7,12})\b/i,
+            // RG após label sem órgão (com quebra de linha): "REGISTRO GERAL\n9140108433"
+            /REGISTRO\s+GERAL\s*\n\s*(\d{7,12})/i,
+            // RG antigo RS em 3 linhas: "REGISTRO\nGERAL\n<número>"
             /REGISTRO\s*\n\s*GERAL\s*\n\s*(\d{6,12})/i,
-            /(\d{1,2}[.\s]?\d{3}[.\s]?\d{3}[-\s]?[\dX])\s*(SSP|DETRAN|IFP|SESP|SDS|PC|PM)?[/-]?([A-Z]{2})?/i,
+            // Fallback: número formatado com órgão
+            new RegExp(`(\\d{1,2}[.\\s]?\\d{3}[.\\s]?\\d{3}[-\\s]?[\\dX])\\s*(${ORGAOS})?[/-]?([A-Z]{2})?`, 'i'),
         ];
         for (const re of reRG) {
             const m = t.match(re);
             if (m && m[1]) {
                 let rg = m[1].trim();
                 if (m[2]) rg += ' ' + m[2];
-                // CNH: órgão/UF + estado separado (ex: SSP/PC RS → SSP/PC-RS)
                 if (m[3] && m[4]) rg += '/' + m[3] + '-' + m[4];
                 else if (m[3]) rg += '/' + m[3];
                 resultado.rg = rg;
@@ -905,92 +1006,133 @@
             }
         }
 
+        // Complementa RG sem órgão identificado com "IGP/SSP/RS" quando o
+        // cabeçalho do documento menciona o Instituto-Geral de Perícias (RS)
+        if (resultado.rg && !/SSP|IGP|DETRAN|PC\/|IFP|SESP|SDS|PM|SEPC|SJS/.test(resultado.rg)) {
+            if (/INSTITUTO.GERAL DE PER[IÍ]CIAS/i.test(t)) {
+                resultado.rg += ' IGP/SSP/RS';
+            }
+        }
+
+        // -------------------------------------------------------
         // --- Data de Nascimento ---
+        // Formatos encontrados:
+        //   Padrão:         "24/07/1984"   (dois dígitos em dia e mês)
+        //   RG MG:          "1/5/1961"     (dígito simples em dia e mês)
+        //   CNH nova:       campo "DATA, LOCAL E UF DE NASCIMENTO" com data+cidade juntos
+        // -------------------------------------------------------
         const reDN = [
-            /(?:NASC(?:IMENTO)?|DATA\s+(?:DE\s+)?NASC(?:IMENTO)?)[:\s.]*(\d{2})[\/\-\s.](\d{2})[\/\-\s.](\d{4})/i,
-            /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/,
+            // CNH nova bilingue: "DATA, LOCAL E UF DE NASCIMENTO\n15/07/1997 ESPUMOSO/RS"
+            /DATA,?\s+LOCAL\s+E\s+UF[^\n]*\n\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+            // Com rótulo explícito de nascimento (aceita dígito simples)
+            /(?:NASC(?:IMENTO)?|DATA\s+(?:DE\s+)?NASC(?:IMENTO)?)[:\s.]*(\d{1,2})[\/\-\s.](\d{1,2})[\/\-\s.](\d{4})/i,
+            // Data isolada na linha (aceita dígito simples)
+            /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/,
         ];
         for (const re of reDN) {
             const m = t.match(re);
             if (m) {
                 const ano = parseInt(m[3]);
                 if (ano >= 1900 && ano <= new Date().getFullYear()) {
-                    resultado.data_nascimento = `${m[3]}-${m[2]}-${m[1]}`;
+                    resultado.data_nascimento = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
                     break;
                 }
             }
         }
 
+        // -------------------------------------------------------
         // --- Filiação: Mãe e Pai ---
         // Formatos conhecidos após FILIAÇÃO\n:
-        //   CNH:           4 linhas — prenome_pai / sobrenome_pai / prenome_mae / sobrenome_mae
-        //                  (cada parte do nome numa linha separada, 1-2 palavras por linha)
-        //   RG novo:       2 linhas — nome_completo_pai / nome_completo_mae
+        //   CNH (todas):   2 linhas com nome completo cada (pai / mãe)
+        //   RG RS novo:    2 linhas com nome completo cada (pai / mãe)
+        //                  Caso especial: só 1 linha (apenas mãe, pai não declarado)
         //   RG antigo RS:  3 linhas — prenome_pai / sobrenome_pai / nome_completo_mae
-        //                  Ex: "ELDONO\nSAVADINTZKY\nEUNICE MIRACI SAVADINTZKY"
-        //                  Heurística: linha1 e linha2 têm 1 palavra cada → junta como pai;
-        //                  linha3 tem 2+ palavras → é a mãe
+        //   RG MG:         2 linhas com nome completo cada
+        // -------------------------------------------------------
 
-        // Captura até 4 linhas após FILIAÇÃO
-        const mFil = t.match(/FILIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]+)\n[ \t]*([^\n]+)(?:\n[ \t]*([^\n]+))?(?:\n[ \t]*([^\n]+))?/i);
+        // Tenta capturar até 4 linhas após FILIAÇÃO
+        const mFil4 = t.match(/FILIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]+)\n[ \t]*([^\n]+)(?:\n[ \t]*([^\n]+))?(?:\n[ \t]*([^\n]+))?/i);
+        // Tenta capturar apenas 1 linha (filiação com um só genitor)
+        const mFil1 = !mFil4 ? t.match(/FILIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]{5,})/i) : null;
 
-        if (mFil) {
-            const l1 = mFil[1] ? mFil[1].trim() : '';
-            const l2 = mFil[2] ? mFil[2].trim() : '';
-            const l3 = mFil[3] ? mFil[3].trim() : '';
-            const l4 = mFil[4] ? mFil[4].trim() : '';
+        if (mFil4) {
+            const l1 = mFil4[1] ? mFil4[1].trim() : '';
+            const l2 = mFil4[2] ? mFil4[2].trim() : '';
+            const l3 = mFil4[3] ? mFil4[3].trim() : '';
+            const l4 = mFil4[4] ? mFil4[4].trim() : '';
 
             const palavras = (s) => s.split(/\s+/).filter(Boolean).length;
             const ehNomeCompleto = (s) => palavras(s) >= 2;
-            // Linha é só sobrenome/prenome isolado se tiver 1 palavra apenas
-            const ehFragmento = (s) => palavras(s) === 1;
+            const ehFragmento    = (s) => palavras(s) === 1;
+            // Filtra linhas que são rótulos do documento (não nomes)
+            const ehRotulo = (s) => /^(DATA|NASCIMENTO|EXPEDIDOR|FATOR|NATURALIDADE|ÓRGÃO|ORGAO|PERMISSAO|VALIDADE|CATEGORIA|REGISTRO)/i.test(s);
 
-            if (ehFragmento(l1) && ehFragmento(l2) && l3) {
-                // RG antigo RS: prenome_pai + sobrenome_pai + nome_mae (3 linhas)
+            // Linha 2 pode ser rótulo do próximo campo — nesse caso só há 1 genitor
+            if (l2 && ehRotulo(l2)) {
+                // Apenas 1 linha de filiação (mãe sem pai declarado)
+                if (l1.length > 4) resultado.nome_mae = toTitleCase(l1);
+            } else if (ehFragmento(l1) && ehFragmento(l2) && l3 && !ehRotulo(l3)) {
+                // RG antigo RS: prenome_pai + sobrenome_pai + nome_mae
                 const pai = (l1 + ' ' + l2).trim();
                 if (pai.length > 4) resultado.nome_pai = toTitleCase(pai);
                 if (l3.length > 4) resultado.nome_mae = toTitleCase(l3);
             } else if (ehFragmento(l1) && ehNomeCompleto(l2)) {
-                // 2 linhas: pai fragmentado + mãe completa (raro)
+                // Pai fragmentado + mãe completa (raro)
                 if (l1.length > 1) resultado.nome_pai = toTitleCase(l1);
                 resultado.nome_mae = toTitleCase(l2);
             } else if (ehNomeCompleto(l1) && ehNomeCompleto(l2)) {
-                // RG novo: 2 linhas com nome completo cada
+                // CNH / RG novo: 2 linhas com nome completo (pai / mãe)
                 resultado.nome_pai = toTitleCase(l1);
                 resultado.nome_mae = toTitleCase(l2);
             } else if (ehFragmento(l1) && ehFragmento(l2) && ehFragmento(l3) && l4) {
-                // CNH: 4 fragmentos — prenome+sobrenome_pai / prenome+sobrenome_mae
+                // 4 fragmentos: prenome+sobrenome_pai / prenome+sobrenome_mae
                 const pai = (l1 + ' ' + l2).trim();
                 const mae = (l3 + ' ' + l4).trim();
                 if (pai.length > 4) resultado.nome_pai = toTitleCase(pai);
                 if (mae.length > 4) resultado.nome_mae = toTitleCase(mae);
             } else if (ehNomeCompleto(l1) && ehFragmento(l2) && l3 && ehFragmento(l3)) {
-                // CNH alternativo: nome_pai completo mas mãe em 2 linhas
+                // Nome_pai completo, mãe em 2 fragmentos
                 resultado.nome_pai = toTitleCase(l1);
                 const mae = (l2 + ' ' + l3).trim();
                 if (mae.length > 4) resultado.nome_mae = toTitleCase(mae);
             } else {
-                // Fallback genérico: primeira linha = pai, segunda = mãe
+                // Fallback: primeira linha = pai, segunda = mãe
                 if (l1.length > 4) resultado.nome_pai = toTitleCase(l1);
                 if (l2.length > 4) resultado.nome_mae = toTitleCase(l2);
             }
+        } else if (mFil1) {
+            // Apenas 1 genitor declarado — assume mãe
+            resultado.nome_mae = toTitleCase(mFil1[1].trim());
         } else {
-            // Sem bloco FILIAÇÃO — tenta rótulos explícitos MÃE / PAI
+            // Sem bloco FILIAÇÃO — tenta rótulos explícitos
             const mMae = t.match(/(?:M[ÃA]E|NOME\s+DA\s+M[ÃA]E)[:\s]*\n?[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][^\n]{4,59})/i);
             if (mMae && mMae[1].trim().length > 4) resultado.nome_mae = toTitleCase(mMae[1].trim());
             const mPai = t.match(/(?:\bPAI\b|NOME\s+DO\s+PAI)[:\s]*\n?[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][^\n]{4,59})/i);
             if (mPai && mPai[1].trim().length > 4) resultado.nome_pai = toTitleCase(mPai[1].trim());
         }
 
+        // -------------------------------------------------------
         // --- Naturalidade ---
-        // CNH:      "LOCAL\nSANTA MARIA, RS"       (vírgula antes da UF)
-        // RG novo:  "NATURALIDADE\nSANTA MARIA/RS"  (barra antes da UF)
-        // RG antigo RS: "NATURALIDADE\nCARAZINHO RS" (só espaço antes da UF)
+        // Formatos encontrados:
+        //   CNH antiga RS:  "LOCAL\nURUGUAIANA, RS"       (vírgula antes da UF)
+        //   CNH nova RS:    "DATA, LOCAL E UF DE NASCIMENTO\n15/07/1997 ESPUMOSO/RS"
+        //                   (data e cidade na mesma linha, barra antes da UF)
+        //   RG novo RS/SP:  "NATURALIDADE\nSANTA MARIA/RS" (barra antes da UF)
+        //   RG RS moderno:  "NATURALIDADE\nMATA RS"        (espaço antes da UF)
+        //   RG MG:          "NATURALIDADE\nBELO HORIZONTE-MG" (hífen antes da UF)
+        // -------------------------------------------------------
+        // Naturalidade — NÃO usar o campo "LOCAL" de CNH (é o local de emissão,
+        // não a naturalidade do titular). A naturalidade da CNH nova vem do campo
+        // combinado "DATA, LOCAL E UF DE NASCIMENTO" (primeiro padrão abaixo).
         const reNat = [
-            /\bLOCAL\s*\n\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇA-záàãâéêíóôõúüç ]{2,39}),\s*([A-Z]{2})/i,
-            /(?:NATURALIDADE|LOCAL\s+DE\s+NASC(?:IMENTO)?)[:\s]*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇA-záàãâéêíóôõúüç ]{2,39})[\/,]\s*([A-Z]{2})/i,
-            // RG antigo: "NATURALIDADE\nCARAZINHO RS" — UF separada só por espaço no fim da linha
-            /(?:NATURALIDADE)[:\s]*\n\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇA-záàãâéêíóôõúüç ]{2,39})\s+([A-Z]{2})\b/i,
+            // CNH nova bilingue: data+cidade juntos — extrai apenas a cidade/UF
+            /DATA,?\s+LOCAL\s+E\s+UF[^\n]*\n\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s+([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})[\/,]\s*([A-Z]{2})/i,
+            // RG padrão com barra ou vírgula: "NATURALIDADE\nCIDADE/UF"
+            /(?:NATURALIDADE|LOCAL\s+DE\s+NASC(?:IMENTO)?)[:\s]*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})[\/,]\s*([A-Z]{2})/i,
+            // RG MG com hífen: "NATURALIDADE\nBELO HORIZONTE-MG"
+            /(?:NATURALIDADE)[:\s]*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})-([A-Z]{2})\b/i,
+            // RG RS moderno com espaço: "NATURALIDADE\nMATA RS"
+            /(?:NATURALIDADE)[:\s]*\n\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})\s+([A-Z]{2})\b/i,
         ];
         for (const re of reNat) {
             const m = t.match(re);
