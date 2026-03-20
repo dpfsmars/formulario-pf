@@ -393,12 +393,22 @@
         </form>
 
         <div id="mensagem-status" class="mensagem-status" hidden></div>
+
+        <div class="doc-orientacao">
+            <strong>Envio de cópia do documento de identidade</strong>
+            <p>Após o envio do formulário, encaminhe uma foto ou cópia do seu documento de identidade (frente e verso) por um dos canais abaixo:</p>
+            <ul>
+                <li><strong>WhatsApp:</strong> <a href="https://wa.me/555532189030" target="_blank">(55) 3218-9030</a></li>
+                <li><strong>E-mail:</strong> <a href="mailto:nucart.dpf.sma@pf.gov.br">nucart.dpf.sma@pf.gov.br</a></li>
+            </ul>
+        </div>
     </main>
 
     <footer>
         <p>Polícia Federal — Delegacia de Polícia Federal em Santa Maria/RS</p>
         <p class="footer-endereco">Rua Vale Machado, 1361, Centro, Santa Maria - RS, CEP 97010-530</p>
         <p class="footer-endereco">Telefone/WhatsApp: <a href="https://wa.me/555532189030" target="_blank" class="whatsapp-link">(55) 3218-9030</a></p>
+        <p class="footer-endereco">E-mail: <a href="mailto:nucart.dpf.sma@pf.gov.br" class="footer-email">nucart.dpf.sma@pf.gov.br</a></p>
         <p class="footer-note">Este formulário é de uso exclusivo para qualificação de pessoas intimadas. Os dados serão tratados conforme a LGPD.</p>
     </footer>
 
@@ -1271,55 +1281,44 @@
             'CEP ' + document.getElementById('cep').value
         ].filter(Boolean).join(', ');
 
-        var arquivoFrente = document.getElementById('doc_identidade').files[0];
-        var arquivoVerso = document.getElementById('doc_identidade_verso').files[0];
+        var dadosEmail = {
+            nome:              document.getElementById('nome').value,
+            cpf:               document.getElementById('cpf').value,
+            rg:                document.getElementById('rg').value,
+            data_nascimento:   document.getElementById('data_nascimento').value.split('-').reverse().join('/'),
+            estado_civil:      document.getElementById('estado_civil').value,
+            profissao:         document.getElementById('profissao').value,
+            escolaridade:      document.getElementById('escolaridade').value,
+            nome_mae:          document.getElementById('nome_mae').value,
+            nome_pai:          document.getElementById('nome_pai').value || 'Não informado',
+            naturalidade:      document.getElementById('naturalidade').value,
+            endereco:          endereco,
+            telefone:          document.getElementById('telefone').value,
+            email:             document.getElementById('email').value || 'Não informado',
+            num_procedimento:  document.getElementById('num_procedimento').value,
+            email_destino:     EMAIL_DESTINO,
+            ip_usuario:        ipUsuario,
+            geolocalizacao:    geoUsuario
+        };
 
-        Promise.all([
-            comprimirImagem(arquivoFrente, 400, 0.4),
-            comprimirImagem(arquivoVerso, 400, 0.4)
-        ]).then(function (imagens) {
-
-            var dadosEmail = {
-                nome:              document.getElementById('nome').value,
-                cpf:               document.getElementById('cpf').value,
-                rg:                document.getElementById('rg').value,
-                data_nascimento:   document.getElementById('data_nascimento').value.split('-').reverse().join('/'),
-                estado_civil:      document.getElementById('estado_civil').value,
-                profissao:         document.getElementById('profissao').value,
-                escolaridade:      document.getElementById('escolaridade').value,
-                nome_mae:          document.getElementById('nome_mae').value,
-                nome_pai:          document.getElementById('nome_pai').value || 'Não informado',
-                naturalidade:      document.getElementById('naturalidade').value,
-                endereco:          endereco,
-                telefone:          document.getElementById('telefone').value,
-                email:             document.getElementById('email').value || 'Não informado',
-                num_procedimento:  document.getElementById('num_procedimento').value,
-                email_destino:     EMAIL_DESTINO,
-                doc_identidade:       imagens[0] || 'Não anexado',
-                doc_identidade_verso: imagens[1] || 'Não anexado',
-                ip_usuario:        ipUsuario,
-                geolocalizacao:    geoUsuario
-            };
-
-            emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, dadosEmail)
-                .then(function () {
-                    mostrarMensagem('Dados enviados com sucesso! A Polícia Federal em Santa Maria receberá suas informações.', 'sucesso');
-                    document.getElementById('form-qualificacao').reset();
-                    document.getElementById('preview-doc').hidden = true;
-                    document.getElementById('preview-doc-verso').hidden = true;
-                    document.getElementById('ocr-campos-extraidos').style.display = 'none';
-                    document.getElementById('ocr-status').textContent = '';
-                    document.getElementById('btn-extrair').disabled = true;
-                })
-                .catch(function (erro) {
-                    console.error('Erro ao enviar:', erro);
-                    mostrarMensagem('Erro ao enviar os dados. Verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com a delegacia.', 'erro');
-                })
-                .finally(function () {
-                    btn.disabled = false;
-                    btn.textContent = 'Enviar Dados';
-                });
-        });
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, dadosEmail)
+            .then(function () {
+                mostrarMensagem('Dados enviados com sucesso! A Polícia Federal em Santa Maria receberá suas informações.', 'sucesso');
+                document.getElementById('form-qualificacao').reset();
+                document.getElementById('preview-doc').hidden = true;
+                document.getElementById('preview-doc-verso').hidden = true;
+                document.getElementById('ocr-campos-extraidos').style.display = 'none';
+                document.getElementById('ocr-status').textContent = '';
+                document.getElementById('btn-extrair').disabled = true;
+            })
+            .catch(function (erro) {
+                console.error('Erro ao enviar:', erro);
+                mostrarMensagem('Erro ao enviar os dados. Verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com a delegacia.', 'erro');
+            })
+            .finally(function () {
+                btn.disabled = false;
+                btn.textContent = 'Enviar Dados';
+            });
     });
 
     // Limpa estado ao resetar o formulário

@@ -312,10 +312,51 @@ footer {
     text-decoration: underline;
 }
 
+.footer-email {
+    color: #aac4e8;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.footer-email:hover {
+    text-decoration: underline;
+}
+
 .footer-note {
     margin-top: 0.6rem;
     font-size: 0.78rem;
     opacity: 0.65;
+}
+
+.doc-orientacao {
+    margin: 1.5rem auto;
+    max-width: 680px;
+    background: #fff8e1;
+    border-left: 4px solid #f0a500;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    font-size: 0.92rem;
+    color: #4a3800;
+}
+
+.doc-orientacao strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.4rem;
+    color: #3a2a00;
+}
+
+.doc-orientacao ul {
+    margin: 0.5rem 0 0 1.2rem;
+    padding: 0;
+}
+
+.doc-orientacao li {
+    margin-bottom: 0.25rem;
+}
+
+.doc-orientacao a {
+    color: #0056b3;
 }
 
 /* ===== Responsivo ===== */
