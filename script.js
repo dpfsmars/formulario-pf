@@ -305,8 +305,8 @@ document.getElementById('form-qualificacao').addEventListener('submit', function
     var arquivoVerso = document.getElementById('doc_identidade_verso').files[0];
 
     Promise.all([
-        comprimirImagem(arquivoFrente, 800, 0.6),
-        comprimirImagem(arquivoVerso, 800, 0.6)
+        comprimirImagem(arquivoFrente, 400, 0.4),
+        comprimirImagem(arquivoVerso, 400, 0.4)
     ]).then(function (imagens) {
 
         // Dados para o template do EmailJS
