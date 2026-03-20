@@ -193,10 +193,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="doc_identidade">Foto do documento (frente) <span class="required-mark">*</span></label>
+                    <label for="doc_identidade">Foto do documento <span class="required-mark">*</span></label>
                     <input type="file" id="doc_identidade" name="doc_identidade" accept="image/*,application/pdf">
                     <span class="file-hint">Foto, imagem ou PDF do documento (máx. 5MB)</span>
-                    <img id="preview-doc" class="preview-img" hidden alt="Pré-visualização do documento (frente)">
+                    <img id="preview-doc" class="preview-img" hidden alt="Pré-visualização do documento">
                 </div>
 
                 <button type="button" id="btn-extrair" disabled>
@@ -208,15 +208,6 @@
                 <div class="ocr-campos-extraidos" id="ocr-campos-extraidos">
                     <strong>Campos preenchidos automaticamente:</strong>
                     <ul id="ocr-lista-campos"></ul>
-                </div>
-
-                <div class="separador-ocr">verso do documento (opcional)</div>
-
-                <div class="form-group">
-                    <label for="doc_identidade_verso">Foto do documento (verso)</label>
-                    <input type="file" id="doc_identidade_verso" name="doc_identidade_verso" accept="image/*">
-                    <span class="file-hint">Opcional — envie o verso se o documento for plastificado</span>
-                    <img id="preview-doc-verso" class="preview-img" hidden alt="Pré-visualização do documento (verso)">
                 </div>
             </fieldset>
 
@@ -588,12 +579,6 @@
             mostrarErro(docFrente, 'Arquivo muito grande (máximo 5MB).');
             valido = false;
         }
-        var docVerso = document.getElementById('doc_identidade_verso');
-        if (docVerso.files.length > 0 && docVerso.files[0].size > 5 * 1024 * 1024) {
-            mostrarErro(docVerso, 'Arquivo muito grande (máximo 5MB).');
-            valido = false;
-        }
-
         return valido;
     }
 
@@ -662,8 +647,6 @@
     }
 
     configurarPreview('doc_identidade', 'preview-doc');
-    configurarPreview('doc_identidade_verso', 'preview-doc-verso');
-
     // Habilita o botão de extração quando a frente for selecionada
     document.getElementById('doc_identidade').addEventListener('change', function () {
         document.getElementById('btn-extrair').disabled = !this.files || !this.files[0];
@@ -1302,7 +1285,6 @@
                 mostrarMensagem('Dados enviados com sucesso! A Polícia Federal em Santa Maria receberá suas informações.', 'sucesso');
                 document.getElementById('form-qualificacao').reset();
                 document.getElementById('preview-doc').hidden = true;
-                document.getElementById('preview-doc-verso').hidden = true;
                 document.getElementById('ocr-campos-extraidos').style.display = 'none';
                 document.getElementById('ocr-status').textContent = '';
                 document.getElementById('btn-extrair').disabled = true;
