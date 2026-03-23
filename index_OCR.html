@@ -1054,59 +1054,39 @@
         //   RG MG:         2 linhas com nome completo cada
         // -------------------------------------------------------
 
-        // Tenta capturar até 4 linhas após FILIAÇÃO
-        const mFil4 = t.match(/FI?LIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]+)\n[ \t]*([^\n]+)(?:\n[ \t]*([^\n]+))?(?:\n[ \t]*([^\n]+))?/i);
-        // Tenta capturar apenas 1 linha (filiação com um só genitor)
-        const mFil1 = !mFil4 ? t.match(/FI?LIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]{5,})/i) : null;
+        // Captura bloco de até 15 linhas após FILIAÇÃO.
+        // CNH nova bilingue intercala campos entre os dois nomes — varredura ampla
+        // com filtro agressivo de linhas que não são nomes de pessoas.
+        const mFilBloco = t.match(/FI?LIA[CÇ][AÃ]O[ \t]*\n([\s\S]{1,600})/i);
 
-        if (mFil4) {
-            const l1 = mFil4[1] ? mFil4[1].trim() : '';
-            const l2 = mFil4[2] ? mFil4[2].trim() : '';
-            const l3 = mFil4[3] ? mFil4[3].trim() : '';
-            const l4 = mFil4[4] ? mFil4[4].trim() : '';
+        if (mFilBloco) {
+            const naoEhNome = (s) =>
+                !s || s.length < 3 ||
+                /^[-–—]/.test(s) ||                        // artefatos: "-SM ...", "-NO ..."
+                /^\d[\d\/\.\- ]{3,}/.test(s) ||             // datas e números de registro
+                /^[A-Z]{1,3}$/.test(s) ||                   // códigos: "AB", "B", "ACC"
+                /[,\/\\]/.test(s) ||                         // separadores de data/código
+                /^(DATA|NASC|EXPED|FATOR|NATUR|ÓRGÃO|ORGAO|PERMIS|VALID|CATEG|REGIS|HABIT|NACIO|LOCAL|ASSIN|PROIB|OBSER)\b/i.test(s);
+
+            const linhas = mFilBloco[1].split('\n')
+                .slice(0, 15)
+                .map(l => l.trim())
+                .filter(l => !naoEhNome(l));
 
             const palavras = (s) => s.split(/\s+/).filter(Boolean).length;
-            const ehNomeCompleto = (s) => palavras(s) >= 2;
-            const ehFragmento    = (s) => palavras(s) === 1;
-            // Filtra linhas que são rótulos do documento (não nomes)
-            const ehRotulo = (s) => /^(DATA|NASCIMENTO|EXPEDIDOR|FATOR|NATURALIDADE|ÓRGÃO|ORGAO|PERMISSAO|VALIDADE|CATEGORIA|REGISTRO)/i.test(s);
+            const ehFragmento = (s) => palavras(s) === 1;
 
-            // Linha 2 pode ser rótulo do próximo campo — nesse caso só há 1 genitor
-            if (l2 && ehRotulo(l2)) {
-                // Apenas 1 linha de filiação (mãe sem pai declarado)
-                if (l1.length > 4) resultado.nome_mae = toTitleCase(l1);
-            } else if (ehFragmento(l1) && ehFragmento(l2) && l3 && !ehRotulo(l3)) {
+            if (linhas.length >= 3 && ehFragmento(linhas[0]) && ehFragmento(linhas[1])) {
                 // RG antigo RS: prenome_pai + sobrenome_pai + nome_mae
-                const pai = (l1 + ' ' + l2).trim();
-                if (pai.length > 4) resultado.nome_pai = toTitleCase(pai);
-                if (l3.length > 4) resultado.nome_mae = toTitleCase(l3);
-            } else if (ehFragmento(l1) && ehNomeCompleto(l2)) {
-                // Pai fragmentado + mãe completa (raro)
-                if (l1.length > 1) resultado.nome_pai = toTitleCase(l1);
-                resultado.nome_mae = toTitleCase(l2);
-            } else if (ehNomeCompleto(l1) && ehNomeCompleto(l2)) {
-                // CNH / RG novo: 2 linhas com nome completo (pai / mãe)
-                resultado.nome_pai = toTitleCase(l1);
-                resultado.nome_mae = toTitleCase(l2);
-            } else if (ehFragmento(l1) && ehFragmento(l2) && ehFragmento(l3) && l4) {
-                // 4 fragmentos: prenome+sobrenome_pai / prenome+sobrenome_mae
-                const pai = (l1 + ' ' + l2).trim();
-                const mae = (l3 + ' ' + l4).trim();
-                if (pai.length > 4) resultado.nome_pai = toTitleCase(pai);
-                if (mae.length > 4) resultado.nome_mae = toTitleCase(mae);
-            } else if (ehNomeCompleto(l1) && ehFragmento(l2) && l3 && ehFragmento(l3)) {
-                // Nome_pai completo, mãe em 2 fragmentos
-                resultado.nome_pai = toTitleCase(l1);
-                const mae = (l2 + ' ' + l3).trim();
-                if (mae.length > 4) resultado.nome_mae = toTitleCase(mae);
-            } else {
-                // Fallback: primeira linha = pai, segunda = mãe
-                if (l1.length > 4) resultado.nome_pai = toTitleCase(l1);
-                if (l2.length > 4) resultado.nome_mae = toTitleCase(l2);
+                resultado.nome_pai = toTitleCase(linhas[0] + ' ' + linhas[1]);
+                resultado.nome_mae = toTitleCase(linhas[2]);
+            } else if (linhas.length >= 2) {
+                resultado.nome_pai = toTitleCase(linhas[0]);
+                resultado.nome_mae = toTitleCase(linhas[1]);
+            } else if (linhas.length === 1) {
+                // Apenas 1 genitor declarado — assume mãe
+                resultado.nome_mae = toTitleCase(linhas[0]);
             }
-        } else if (mFil1) {
-            // Apenas 1 genitor declarado — assume mãe
-            resultado.nome_mae = toTitleCase(mFil1[1].trim());
         } else {
             // Sem bloco FILIAÇÃO — tenta rótulos explícitos
             const mMae = t.match(/(?:M[ÃA]E|NOME\s+DA\s+M[ÃA]E)[:\s]*\n?[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][^\n]{4,59})/i);
