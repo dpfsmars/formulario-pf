@@ -981,11 +981,13 @@
             // RG com prefixo de estado: "MG-1.742.603" (RGs de MG e outros estados)
             /REGISTRO\s+GERAL\s*\n?\s*([A-Z]{2}-[\d.]+)/i,
             // RG após label com órgão e UF separados por barra: "9140108433 SSP/RS"
-            new RegExp(`(?:REGISTRO\\s+GERAL|RG|N[°º]\\s*RG|DOC[\\. ]+IDENTIDADE[^\\n]*)\\n\\s*(\\d[\\d.\\s-]{4,14}\\d)\\s+(${ORGAOS})\\/([A-Z]{2})\\s*([A-Z]{2})?`, 'i'),
+            // OCR pode omitir o "I" de IDENTIDADE → I?DENTIDADE cobre os dois casos
+            new RegExp(`(?:REGISTRO\\s+GERAL|RG|N[°º]\\s*RG|DOC[\\. ]+I?DENTIDADE[^\\n]*)\\n\\s*(\\d[\\d.\\s-]{4,14}\\d)\\s+(${ORGAOS})\\/([A-Z]{2})\\s*([A-Z]{2})?`, 'i'),
             // Número com órgão/barra/UF + UF adicional: "6056926717 SJS/II RS"
             new RegExp(`(\\d{7,12})\\s+(${ORGAOS})\\/?([A-Z]{1,3})\\s+([A-Z]{2})\\b`, 'i'),
             // Número com órgão e UF (sem barra, separados por espaço): "1122444001 SSP RS"
-            new RegExp(`(?:DOC[\\. ]+IDENTIDADE[^\\n]*|4c[^\\n]*)\\n\\s*(\\d{7,12})\\s+(${ORGAOS})\\s+([A-Z]{2})`, 'i'),
+            // OCR pode omitir o "I" de IDENTIDADE → I?DENTIDADE cobre os dois casos
+            new RegExp(`(?:DOC[\\. ]+I?DENTIDADE[^\\n]*|4c[^\\n]*)\\n\\s*(\\d{7,12})\\s+(${ORGAOS})\\s+([A-Z]{2})`, 'i'),
             // RG moderno RS: "REGISTRO GERAL 9140108433" na mesma linha (sem quebra)
             /REGISTRO\s+GERAL\s+(\d{7,12})\b/i,
             // RG após label sem órgão (com quebra de linha): "REGISTRO GERAL\n9140108433"
@@ -1024,7 +1026,8 @@
         // -------------------------------------------------------
         const reDN = [
             // CNH nova bilingue: "DATA, LOCAL E UF DE NASCIMENTO\n15/07/1997 ESPUMOSO/RS"
-            /DATA,?\s+LOCAL\s+E\s+UF[^\n]*\n\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+            // OCR pode fundir "LOCAL E" em "LOCALE" — LOCAL\s*E? cobre os dois casos
+            /DATA,?\s+LOCAL\s*E?\s+UF[^\n]*\n\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
             // Com rótulo explícito de nascimento (aceita dígito simples)
             /(?:NASC(?:IMENTO)?|DATA\s+(?:DE\s+)?NASC(?:IMENTO)?)[:\s.]*(\d{1,2})[\/\-\s.](\d{1,2})[\/\-\s.](\d{4})/i,
             // Data isolada na linha (aceita dígito simples)
@@ -1052,9 +1055,9 @@
         // -------------------------------------------------------
 
         // Tenta capturar até 4 linhas após FILIAÇÃO
-        const mFil4 = t.match(/FILIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]+)\n[ \t]*([^\n]+)(?:\n[ \t]*([^\n]+))?(?:\n[ \t]*([^\n]+))?/i);
+        const mFil4 = t.match(/FI?LIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]+)\n[ \t]*([^\n]+)(?:\n[ \t]*([^\n]+))?(?:\n[ \t]*([^\n]+))?/i);
         // Tenta capturar apenas 1 linha (filiação com um só genitor)
-        const mFil1 = !mFil4 ? t.match(/FILIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]{5,})/i) : null;
+        const mFil1 = !mFil4 ? t.match(/FI?LIA[CÇ][AÃ]O[ \t]*\n[ \t]*([^\n]{5,})/i) : null;
 
         if (mFil4) {
             const l1 = mFil4[1] ? mFil4[1].trim() : '';
@@ -1127,7 +1130,8 @@
         // combinado "DATA, LOCAL E UF DE NASCIMENTO" (primeiro padrão abaixo).
         const reNat = [
             // CNH nova bilingue: data+cidade juntos — extrai apenas a cidade/UF
-            /DATA,?\s+LOCAL\s+E\s+UF[^\n]*\n\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s+([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})[\/,]\s*([A-Z]{2})/i,
+            // OCR pode fundir "LOCAL E" em "LOCALE"
+            /DATA,?\s+LOCAL\s*E?\s+UF[^\n]*\n\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s+([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})[\/,]\s*([A-Z]{2})/i,
             // RG padrão com barra ou vírgula: "NATURALIDADE\nCIDADE/UF"
             /(?:NATURALIDADE|LOCAL\s+DE\s+NASC(?:IMENTO)?)[:\s]*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})[\/,]\s*([A-Z]{2})/i,
             // RG MG com hífen: "NATURALIDADE\nBELO HORIZONTE-MG"
