@@ -397,7 +397,7 @@
         <p class="footer-endereco">Telefone/WhatsApp: <a href="https://wa.me/555532189030" target="_blank" class="whatsapp-link">(55) 3218-9030</a></p>
         <p class="footer-endereco">E-mail: <a href="mailto:nucart.dpf.sma@pf.gov.br" class="footer-email">nucart.dpf.sma@pf.gov.br</a></p>
         <p class="footer-note">Este formulário é de uso exclusivo para qualificação de pessoas intimadas. Os dados serão tratados conforme a LGPD.</p>
-        <p class="footer-versao">v26.03.23.08.35</p>
+        <p class="footer-versao">v26.03.23.08.44</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -1066,7 +1066,7 @@
                 /^\d[\d\/\.\- ]{3,}/.test(s) ||             // datas e números de registro
                 /^[A-Z]{1,3}$/.test(s) ||                   // códigos: "AB", "B", "ACC"
                 /[,\/\\]/.test(s) ||                         // separadores de data/código
-                /^(DATA|NASC|EXPED|FATOR|NATUR|ÓRGÃO|ORGAO|PERMIS|VALID|CATEG|REGIS|HABILI|NACIO|LOCAL|ASSIN|PROIB|OBSER)\b/i.test(s);
+                /^(DATA|NASC|EXPED|FATOR|NATUR|ÓRGÃO|ORGAO|PERMIS|VALID|CATEG|REGIS|HABILITA|NACIO|LOCAL|ASSIN|PROIB|OBSER)\b/i.test(s);
 
             const linhas = mFilBloco[1].split('\n')
                 .slice(0, 15)
