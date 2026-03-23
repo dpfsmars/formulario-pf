@@ -397,7 +397,7 @@
         <p class="footer-endereco">Telefone/WhatsApp: <a href="https://wa.me/555532189030" target="_blank" class="whatsapp-link">(55) 3218-9030</a></p>
         <p class="footer-endereco">E-mail: <a href="mailto:nucart.dpf.sma@pf.gov.br" class="footer-email">nucart.dpf.sma@pf.gov.br</a></p>
         <p class="footer-note">Este formulário é de uso exclusivo para qualificação de pessoas intimadas. Os dados serão tratados conforme a LGPD.</p>
-        <p class="footer-versao">v26.03.23.10.03</p>
+        <p class="footer-versao">v26.03.23.10.22</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -1124,7 +1124,9 @@
             // RG MG com hífen: "NATURALIDADE\nBELO HORIZONTE-MG"
             /(?:NATURALIDADE)[:\s]*\n?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})-([A-Z]{2})\b/i,
             // RG RS moderno com espaço: "NATURALIDADE\nMATA RS"
-            /(?:NATURALIDADE)[:\s]*\n\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})\s+([A-Z]{2})\b/i,
+            // UF deve estar no final da linha (flag m + lookahead \s*$) para não capturar
+            // texto da linha seguinte (ex: "SANTA MARIA RS\nva. Pist" → evitar "Rs/va")
+            /(?:NATURALIDADE)[:\s]*\n\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{2,39})\s+([A-Z]{2})(?=\s*$)/im,
         ];
         for (const re of reNat) {
             const m = t.match(re);
