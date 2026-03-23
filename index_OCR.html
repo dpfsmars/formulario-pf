@@ -939,6 +939,8 @@
         const reNome = [
             // CNH nova bilingue: "NOME E SOBRENOME" seguido de quebra + nome
             /NOME\s+E\s+SOBRENOME[^\n]*\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
+            // CNH antiga: nome aparece direto após o cabeçalho, sem rótulo "NOME"
+            /CARTEIRA NACIONAL DE HABILITACAO\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
             // CNH/RG padrão: rótulo "NOME" + quebra de linha + nome
             /(?:\d[\.\s]+)?NOME[ \t]*\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
             // RG antigo RS: "NOMELARISSA..." sem espaço/quebra
@@ -1179,8 +1181,10 @@
             .then(function (texto) {
                 progressBar.style.width = '85%';
                 definirStatusOCR('Processando resultado...', 'processando');
+                console.log('=== TEXTO OCR ===\n' + texto);
 
                 var extraido = parsearDadosDocumento(texto);
+                console.log('=== EXTRAÍDO ===', extraido);
 
                 var mapeamento = {
                     nome:            'Nome',
