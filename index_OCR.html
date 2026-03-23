@@ -397,7 +397,7 @@
         <p class="footer-endereco">Telefone/WhatsApp: <a href="https://wa.me/555532189030" target="_blank" class="whatsapp-link">(55) 3218-9030</a></p>
         <p class="footer-endereco">E-mail: <a href="mailto:nucart.dpf.sma@pf.gov.br" class="footer-email">nucart.dpf.sma@pf.gov.br</a></p>
         <p class="footer-note">Este formulário é de uso exclusivo para qualificação de pessoas intimadas. Os dados serão tratados conforme a LGPD.</p>
-        <p class="footer-versao">v26.03.23.09.37</p>
+        <p class="footer-versao">v26.03.23.10.03</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -1030,6 +1030,9 @@
             /DATA,?\s+LOCAL\s*E?\s+UF[^\n]*\n\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
             // Com rótulo explícito de nascimento (aceita dígito simples)
             /(?:NASC(?:IMENTO)?|DATA\s+(?:DE\s+)?NASC(?:IMENTO)?)[:\s.]*(\d{1,2})[\/\-\s.](\d{1,2})[\/\-\s.](\d{4})/i,
+            // RG RS moderno: "DATA NASCIMENTO ÓRGÃO EXPEDIDOR\n28/03/2007"
+            // (outros campos na mesma linha do rótulo, data fica na linha seguinte)
+            /DATA\s+NASCIMENTO[^\n]*\n\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
             // Data isolada na linha (aceita dígito simples)
             /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/,
         ];
