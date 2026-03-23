@@ -397,7 +397,7 @@
         <p class="footer-endereco">Telefone/WhatsApp: <a href="https://wa.me/555532189030" target="_blank" class="whatsapp-link">(55) 3218-9030</a></p>
         <p class="footer-endereco">E-mail: <a href="mailto:nucart.dpf.sma@pf.gov.br" class="footer-email">nucart.dpf.sma@pf.gov.br</a></p>
         <p class="footer-note">Este formulário é de uso exclusivo para qualificação de pessoas intimadas. Os dados serão tratados conforme a LGPD.</p>
-        <p class="footer-versao">v26.03.23.10.22</p>
+        <p class="footer-versao">v26.03.23.10.55</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -943,7 +943,8 @@
             // CNH antiga: nome aparece direto após o cabeçalho, sem rótulo "NOME"
             /CARTEIRA NACIONAL DE HABILITACAO\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
             // CNH/RG padrão: rótulo "NOME" + quebra de linha + nome
-            /(?:\d[\.\s]+)?NOME[ \t]*\n[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
+            // RG MG: OCR pode inserir "DATA DE EXPEDIÇÃO" entre o rótulo e o nome real
+            /(?:\d[\.\s]+)?NOME[ \t]*\n(?:DATA[^\n]*\n)?(?:EXPEDI[CÇ][AÃ]O[^\n]*\n)?[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç ]{4,59})/,
             // RG antigo RS: "NOMELARISSA..." sem espaço/quebra
             /\bNOME[ \t]*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ][A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇa-záàãâéêíóôõúüç][^\n]{2,57})/,
         ];
@@ -951,7 +952,7 @@
             const m = t.match(re);
             if (m && m[1] && m[1].trim().length > 4) {
                 const candidato = m[1].trim();
-                const palavrasProibidas = /^(REGISTRO|GERAL|CIVIL|FEDERAL|ESTADO|REPUBLICA|SECRETARIA|SEGURANCA|PUBLICA|FILIACAO|NATURALIDADE|NASCIMENTO|SOBRENOME)/i;
+                const palavrasProibidas = /^(REGISTRO|GERAL|CIVIL|FEDERAL|ESTADO|REPUBLICA|SECRETARIA|SEGURANCA|PUBLICA|FILIACAO|NATURALIDADE|NASCIMENTO|SOBRENOME|DATA)/i;
                 if (!palavrasProibidas.test(candidato)) {
                     resultado.nome = toTitleCase(candidato);
                     break;
@@ -979,7 +980,8 @@
         const ORGAOS = 'SSP|DETRAN|IFP|SESP|SDS|PC|PM|SEPC|SJS|IGP|PCMG|PCSP|PCRS';
         const reRG = [
             // RG com prefixo de estado: "MG-1.742.603" (RGs de MG e outros estados)
-            /REGISTRO\s+GERAL\s*\n?\s*([A-Z]{2}-[\d.]+)/i,
+            // OCR pode fundir "REGISTRO" com o prefixo → "REGISTROMG-..." sem espaço
+            /REGISTRO(?:\s+GERAL\s*\n?\s*|\s*)([A-Z]{2}-[\d.]+)/i,
             // RG após label com órgão e UF separados por barra: "9140108433 SSP/RS"
             // OCR pode omitir o "I" de IDENTIDADE → I?DENTIDADE cobre os dois casos
             new RegExp(`(?:REGISTRO\\s+GERAL|RG|N[°º]\\s*RG|DOC[\\. ]+I?DENTIDADE[^\\n]*)\\n\\s*(\\d[\\d.\\s-]{4,14}\\d)\\s+(${ORGAOS})\\/([A-Z]{2})\\s*([A-Z]{2})?`, 'i'),
@@ -1014,6 +1016,8 @@
         if (resultado.rg && !/SSP|IGP|DETRAN|PC\/|IFP|SESP|SDS|PM|SEPC|SJS/.test(resultado.rg)) {
             if (/INSTITUTO.GERAL DE PER[IÍ]CIAS/i.test(t)) {
                 resultado.rg += ' IGP/SSP/RS';
+            } else if (/ESTADO DE MINAS GERAIS|POL[IÍ]CIA CIVIL.*MINAS/i.test(t)) {
+                resultado.rg += ' PC/MG';
             }
         }
 
