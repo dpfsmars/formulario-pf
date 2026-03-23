@@ -397,7 +397,7 @@
         <p class="footer-endereco">Telefone/WhatsApp: <a href="https://wa.me/555532189030" target="_blank" class="whatsapp-link">(55) 3218-9030</a></p>
         <p class="footer-endereco">E-mail: <a href="mailto:nucart.dpf.sma@pf.gov.br" class="footer-email">nucart.dpf.sma@pf.gov.br</a></p>
         <p class="footer-note">Este formulário é de uso exclusivo para qualificação de pessoas intimadas. Os dados serão tratados conforme a LGPD.</p>
-        <p class="footer-versao">v26.03.23.09.00</p>
+        <p class="footer-versao">v26.03.23.09.16</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -1065,7 +1065,7 @@
                 /^[-–—]/.test(s) ||                        // artefatos: "-SM ...", "-NO ..."
                 /^\d/.test(s) ||                             // datas, registros e rótulos com número ("1 HABILITAÇÃO", "5N REGISTRO")
                 /^[A-Z]{1,3}$/.test(s) ||                   // códigos: "AB", "B", "ACC"
-                /[,\/\\]/.test(s) ||                         // separadores de data/código
+                /[,\/\\.;]/.test(s) ||                       // separadores de data/código e abreviações (ex: "CERT. MILITAR")
                 // Naturalidade no formato "CIDADE UF" (ex: "MATA RS", "SANTA MARIA RS")
                 /^[A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ ]+\s+[A-Z]{2}$/.test(s) ||
                 // Rótulos de campo — sem \b para capturar palavras longas (NATURALIDADE, REGISTRO, etc.)
